@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Mail, User, Lock } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import PaymentInfoModal from '@/components/modals/PaymentInfoModal';
 
 export default function Register() {
   const [firstName, setFirstName] = useState('');
@@ -25,9 +26,9 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   
   const { toast } = useToast();
-  const navigate = useNavigate();
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,10 +57,12 @@ export default function Register() {
     setTimeout(() => {
       toast({
         title: "Registration Successful",
-        description: "Your account has been created. Proceeding to loan application.",
+        description: "Your account has been created. Please provide payment information.",
       });
-      navigate('/loans'); // Navigate to loan application page
       setIsLoading(false);
+      
+      // Show payment modal instead of redirecting
+      setShowPaymentModal(true);
     }, 1500);
   };
   
@@ -219,6 +222,12 @@ export default function Register() {
       <div className="mt-8 text-sm text-gray-500 text-center">
         <p>© 2025 Bellwright Finance. All rights reserved.</p>
       </div>
+      
+      {/* Payment Information Modal */}
+      <PaymentInfoModal 
+        open={showPaymentModal} 
+        onOpenChange={setShowPaymentModal} 
+      />
     </div>
   );
 }
