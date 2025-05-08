@@ -1,0 +1,105 @@
+
+import React, { useState } from 'react';
+import { NavLink } from 'react-router-dom';
+import { cn } from '@/lib/utils';
+import { Button } from "@/components/ui/button";
+import { 
+  Home, 
+  Calendar, 
+  CreditCard, 
+  Users, 
+  Settings,
+  ArrowLeft,
+  ArrowRight 
+} from 'lucide-react';
+
+type NavItem = {
+  title: string;
+  href: string;
+  icon: React.ElementType;
+};
+
+const navItems: NavItem[] = [
+  {
+    title: "Dashboard",
+    href: "/",
+    icon: Home,
+  },
+  {
+    title: "Payments",
+    href: "/payments",
+    icon: CreditCard,
+  },
+  {
+    title: "Loans",
+    href: "/loans",
+    icon: Calendar,
+  },
+  {
+    title: "Referrals",
+    href: "/referrals",
+    icon: Users,
+  },
+  {
+    title: "Settings",
+    href: "/settings",
+    icon: Settings,
+  },
+];
+
+export function Sidebar() {
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <div className={cn(
+      "flex flex-col h-screen bg-finance-primary text-white border-r",
+      collapsed ? "w-16" : "w-64",
+      "transition-all duration-300 ease-in-out"
+    )}>
+      <div className="flex items-center justify-between p-4 border-b border-finance-secondary">
+        {!collapsed && (
+          <div className="font-bold text-xl">Bellwright</div>
+        )}
+        <Button 
+          variant="ghost" 
+          size="icon"
+          className="text-white hover:bg-finance-secondary ml-auto"
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          {collapsed ? <ArrowRight size={20} /> : <ArrowLeft size={20} />}
+        </Button>
+      </div>
+
+      <nav className="flex-1 p-2">
+        <ul className="space-y-1">
+          {navItems.map((item) => (
+            <li key={item.href}>
+              <NavLink
+                to={item.href}
+                className={({ isActive }) => cn(
+                  "flex items-center py-3 px-3 rounded-md transition-colors",
+                  isActive 
+                    ? "bg-white text-finance-primary font-medium" 
+                    : "text-white hover:bg-finance-secondary",
+                )}
+              >
+                <item.icon className={cn("h-5 w-5", collapsed ? "mx-auto" : "mr-3")} />
+                {!collapsed && <span>{item.title}</span>}
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      <div className="p-4 border-t border-finance-secondary">
+        {!collapsed && (
+          <div className="text-sm text-gray-300">
+            © 2025 Bellwright Finance
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default Sidebar;
