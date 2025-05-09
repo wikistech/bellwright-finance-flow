@@ -56,9 +56,10 @@ type PaymentInfoValues = z.infer<typeof paymentInfoSchema>;
 interface PaymentInfoModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
-export function PaymentInfoModal({ open, onOpenChange }: PaymentInfoModalProps) {
+export function PaymentInfoModal({ open, onOpenChange, onSuccess }: PaymentInfoModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -110,6 +111,11 @@ export function PaymentInfoModal({ open, onOpenChange }: PaymentInfoModalProps) 
       });
       setIsSubmitting(false);
       onOpenChange(false);
+      
+      // Call success callback if provided
+      if (onSuccess) {
+        onSuccess();
+      }
       
       // Redirect to dashboard
       navigate('/dashboard');

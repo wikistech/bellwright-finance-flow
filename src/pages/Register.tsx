@@ -1,4 +1,5 @@
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Mail, User, Lock } from 'lucide-react';
@@ -16,6 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import PaymentInfoModal from '@/components/modals/PaymentInfoModal';
+import VerificationCodeModal from '@/components/modals/VerificationCodeModal';
+import { generateVerificationCode, sendVerificationEmail, sendWelcomeEmail } from '@/utils/verification';
 
 export default function Register() {
   const [firstName, setFirstName] = useState('');
@@ -25,10 +28,52 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
   
   const { toast } = useToast();
   
+  // Generate a new verification code and send it
+  const sendCode = async () => {
+    const newCode = generateVerificationCode();
+    setVerificationCode(newCode);
+    
+    // In a real app, this would call an API to send the email
+    const emailSent = await sendVerificationEmail(email, newCode);
+    
+    if (emailSent) {
+      toast({
+        title: "Verification Code Sent",
+        description: `A 6-digit verification code has been sent to ${email}`,
+      });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Failed to Send Code",
+        description: "There was an issue sending the verification code. Please try again.",
+      });
+    }
+  };
+  
+  // Handle successful verification
+  const handleVerificationSuccess = () => {
+    setShowVerificationModal(false);
+    setShowPaymentModal(true);
+  };
+  
+  // Handle payment info submission success
+  const handlePaymentInfoSuccess = async () => {
+    // Send welcome email
+    await sendWelcomeEmail(email);
+    
+    toast({
+      title: "Welcome to Bellwright Finance",
+      description: "Your account has been created successfully.",
+    });
+  };
+  
+  // Initial registration form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -53,15 +98,18 @@ export default function Register() {
     setIsLoading(true);
     
     // Simulate registration process
-    setTimeout(() => {
+    setTimeout(async () => {
       toast({
-        title: "Registration Successful",
-        description: "Your account has been created. Please provide payment information.",
+        title: "Registration Initiated",
+        description: "Please verify your email to continue.",
       });
       setIsLoading(false);
       
-      // Show payment modal instead of redirecting
-      setShowPaymentModal(true);
+      // Generate and send verification code
+      await sendCode();
+      
+      // Show verification modal
+      setShowVerificationModal(true);
     }, 1500);
   };
   
@@ -222,10 +270,21 @@ export default function Register() {
         <p>© 2025 Bellwright Finance. All rights reserved.</p>
       </div>
       
+      {/* Email Verification Modal */}
+      <VerificationCodeModal
+        open={showVerificationModal}
+        email={email}
+        verificationCode={verificationCode}
+        onOpenChange={setShowVerificationModal}
+        onResendCode={sendCode}
+        onVerifySuccess={handleVerificationSuccess}
+      />
+      
       {/* Payment Information Modal */}
       <PaymentInfoModal 
         open={showPaymentModal} 
-        onOpenChange={setShowPaymentModal} 
+        onOpenChange={setShowPaymentModal}
+        onSuccess={handlePaymentInfoSuccess}
       />
     </div>
   );
