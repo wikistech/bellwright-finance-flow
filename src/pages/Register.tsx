@@ -1,8 +1,8 @@
 
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Mail, User, Lock } from 'lucide-react';
+import { ArrowRight, Lock, Mail, User } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,102 +15,45 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import PaymentInfoModal from '@/components/modals/PaymentInfoModal';
-import VerificationCodeModal from '@/components/modals/VerificationCodeModal';
-import { generateVerificationCode, sendVerificationEmail, sendWelcomeEmail } from '@/utils/verification';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Register() {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showVerificationModal, setShowVerificationModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [verificationCode, setVerificationCode] = useState('');
-  
   const { toast } = useToast();
+  const { signUp, user } = useAuth();
   
-  // Generate a new verification code and send it
-  const sendCode = async () => {
-    const newCode = generateVerificationCode();
-    setVerificationCode(newCode);
-    
-    // In a real app, this would call an API to send the email
-    const emailSent = await sendVerificationEmail(email, newCode);
-    
-    if (emailSent) {
-      toast({
-        title: "Verification Code Sent",
-        description: `A 6-digit verification code has been sent to ${email}`,
-      });
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Failed to Send Code",
-        description: "There was an issue sending the verification code. Please try again.",
-      });
-    }
-  };
+  // Redirect if already logged in
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
   
-  // Handle successful verification
-  const handleVerificationSuccess = () => {
-    setShowVerificationModal(false);
-    setShowPaymentModal(true);
-  };
-  
-  // Handle payment info submission success
-  const handlePaymentInfoSuccess = async () => {
-    // Send welcome email
-    await sendWelcomeEmail(email);
-    
-    toast({
-      title: "Welcome to Bellwright Finance",
-      description: "Your account has been created successfully.",
-    });
-  };
-  
-  // Initial registration form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!acceptTerms) {
-      toast({
-        variant: "destructive",
-        title: "Terms Required",
-        description: "Please accept the terms and conditions to continue.",
-      });
-      return;
-    }
     
     if (password !== confirmPassword) {
       toast({
         variant: "destructive",
-        title: "Password Mismatch",
-        description: "Passwords do not match. Please try again.",
+        title: "Passwords do not match",
+        description: "Please ensure both passwords match.",
       });
       return;
     }
     
     setIsLoading(true);
     
-    // Simulate registration process
-    setTimeout(async () => {
-      toast({
-        title: "Registration Initiated",
-        description: "Please verify your email to continue.",
-      });
+    try {
+      await signUp(email, password, firstName, lastName);
+      // The auth context will handle success toasts and redirects
+    } catch (error) {
+      // Errors are handled in the auth context
+    } finally {
       setIsLoading(false);
-      
-      // Generate and send verification code
-      await sendCode();
-      
-      // Show verification modal
-      setShowVerificationModal(true);
-    }, 1500);
+    }
   };
   
   return (
@@ -130,14 +73,14 @@ export default function Register() {
       >
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-finance-primary">Bellwright Finance</h1>
-          <p className="text-gray-600 mt-2">Create your account to get started</p>
+          <p className="text-gray-600 mt-2">Create your financial account</p>
         </div>
         
         <Card className="border-0 shadow-lg">
           <CardHeader>
             <CardTitle className="text-2xl text-center">Register</CardTitle>
             <CardDescription className="text-center">
-              Enter your information to create an account
+              Enter your details to create an account
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -145,32 +88,26 @@ export default function Register() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First Name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="firstName"
-                      placeholder="John"
-                      className="pl-10"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      required
-                    />
-                  </div>
+                  <Input
+                    id="firstName"
+                    type="text"
+                    placeholder="John"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                  />
                 </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Last Name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="lastName"
-                      placeholder="Doe"
-                      className="pl-10"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      required
-                    />
-                  </div>
+                  <Input
+                    id="lastName"
+                    type="text"
+                    placeholder="Smith"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                  />
                 </div>
               </div>
               
@@ -202,7 +139,6 @@ export default function Register() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    minLength={8}
                   />
                 </div>
               </div>
@@ -223,35 +159,12 @@ export default function Register() {
                 </div>
               </div>
               
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="terms" 
-                  checked={acceptTerms}
-                  onCheckedChange={(checked) => {
-                    setAcceptTerms(checked as boolean);
-                  }}
-                />
-                <label
-                  htmlFor="terms"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  I agree to the{" "}
-                  <Link to="#" className="text-finance-primary hover:underline">
-                    terms of service
-                  </Link>
-                  {" "}and{" "}
-                  <Link to="#" className="text-finance-primary hover:underline">
-                    privacy policy
-                  </Link>
-                </label>
-              </div>
-              
               <Button 
                 type="submit" 
                 className="w-full bg-finance-primary hover:bg-finance-secondary" 
                 disabled={isLoading}
               >
-                {isLoading ? "Creating Account..." : "Create Account"}
+                {isLoading ? "Creating account..." : "Create Account"}
               </Button>
             </form>
           </CardContent>
@@ -269,23 +182,6 @@ export default function Register() {
       <div className="mt-8 text-sm text-gray-500 text-center">
         <p>© 2025 Bellwright Finance. All rights reserved.</p>
       </div>
-      
-      {/* Email Verification Modal */}
-      <VerificationCodeModal
-        open={showVerificationModal}
-        email={email}
-        verificationCode={verificationCode}
-        onOpenChange={setShowVerificationModal}
-        onResendCode={sendCode}
-        onVerifySuccess={handleVerificationSuccess}
-      />
-      
-      {/* Payment Information Modal */}
-      <PaymentInfoModal 
-        open={showPaymentModal} 
-        onOpenChange={setShowPaymentModal}
-        onSuccess={handlePaymentInfoSuccess}
-      />
     </div>
   );
 }

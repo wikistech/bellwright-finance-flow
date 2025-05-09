@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Lock, User } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -15,35 +15,32 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const { signIn, user } = useAuth();
   
-  const handleSubmit = (e: React.FormEvent) => {
+  // Redirect if already logged in
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate login process
-    setTimeout(() => {
-      if (email && password) {
-        toast({
-          title: "Login Successful",
-          description: "Welcome back to Bellwright Finance.",
-        });
-        navigate('/'); // Navigate to dashboard
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Login Failed",
-          description: "Please check your credentials and try again.",
-        });
-      }
+    try {
+      await signIn(email, password);
+      // Auth context will handle redirection and toast
+    } catch (error) {
+      // Error is handled in the auth context
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
   
   return (

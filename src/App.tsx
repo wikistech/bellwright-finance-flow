@@ -4,6 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import PrivateRoute from "./components/auth/PrivateRoute";
 
 import Index from "./pages/Index";
 import LandingPage from "./pages/LandingPage";
@@ -24,18 +26,25 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/dashboard" element={<Index />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/payments" element={<Payments />} />
-          <Route path="/loans" element={<Loans />} />
-          <Route path="/payment-setup" element={<PaymentSetup />} />
-          <Route path="/referrals" element={<Referrals />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            
+            {/* Protected Routes */}
+            <Route element={<PrivateRoute />}>
+              <Route path="/dashboard" element={<Index />} />
+              <Route path="/payments" element={<Payments />} />
+              <Route path="/loans" element={<Loans />} />
+              <Route path="/payment-setup" element={<PaymentSetup />} />
+              <Route path="/referrals" element={<Referrals />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
+            
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
