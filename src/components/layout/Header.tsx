@@ -11,17 +11,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export function Header() {
+  const isMobile = useIsMobile();
   const [unreadNotifications, setUnreadNotifications] = useState(3);
   
   return (
-    <header className="bg-white border-b border-gray-200 py-4 px-6 flex items-center justify-between">
+    <header className="bg-white border-b border-gray-200 py-3 md:py-4 px-4 md:px-6 flex items-center justify-between">
       <div className="flex-1">
-        <h1 className="text-2xl font-bold text-finance-primary">Bellwright Finance</h1>
+        <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-finance-primary`}>
+          {isMobile ? 'Bellwright' : 'Bellwright Finance'}
+        </h1>
       </div>
       
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-2 md:space-x-4">
         <div className="relative">
           <Button variant="ghost" size="icon" className="text-gray-600 hover:text-finance-primary">
             <Bell className="h-5 w-5" />
@@ -35,9 +39,9 @@ export function Header() {
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-              <Avatar className="h-9 w-9">
-                <AvatarFallback className="bg-finance-primary text-white">JD</AvatarFallback>
+            <Button variant="ghost" className="relative h-8 w-8 md:h-9 md:w-9 rounded-full">
+              <Avatar className="h-8 w-8 md:h-9 md:w-9">
+                <AvatarFallback className="bg-finance-primary text-white text-xs md:text-sm">JD</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
