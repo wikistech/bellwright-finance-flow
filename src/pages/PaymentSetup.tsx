@@ -1,8 +1,8 @@
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import Layout from '@/components/layout/Layout';
+import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -24,7 +24,9 @@ import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useToast } from '@/components/ui/use-toast';
+import { useRegistration } from '@/contexts/RegistrationContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const paymentSetupSchema = z.object({
   cardholderName: z
@@ -58,6 +60,13 @@ export default function PaymentSetup() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { registrationData, updateRegistrationData } = useRegistration();
+  const { user } = useAuth();
+  
+  // If user is not verified, redirect to verification page
+  if (!registrationData.isVerified && !user) {
+    return <Navigate to="/verify-email" replace />;
+  }
   
   const form = useForm<PaymentSetupValues>({
     resolver: zodResolver(paymentSetupSchema),
@@ -94,37 +103,72 @@ export default function PaymentSetup() {
     form.setValue('expiryDate', value);
   };
 
-  function onSubmit(data: PaymentSetupValues) {
+  const onSubmit = async (data: PaymentSetupValues) => {
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      console.log('Payment setup submitted:', data);
+    try {
+      // Get current user
+      const { data: userData } = await supabase.auth.getUser();
+      
+      if (!userData.user) {
+        throw new Error("User must be logged in to save payment information");
+      }
+      
+      // Save payment information to database
+      const { error } = await supabase
+        .from('payment_methods')
+        .insert([
+          {
+            user_id: userData.user.id,
+            cardholder_name: data.cardholderName,
+            card_number: data.cardNumber,
+            expiry_date: data.expiryDate,
+            cvv: data.cvv,
+            payment_pin: data.paymentPin,
+            is_default: true
+          }
+        ]);
+      
+      if (error) throw error;
+      
+      // Update registration context
+      updateRegistrationData({ paymentInfoSubmitted: true });
+      
       toast({
         title: "Payment Method Added",
         description: "Your payment information has been successfully saved.",
       });
+      
+      // Navigate to dashboard
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error("Error saving payment information:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to save payment information. Please try again.",
+      });
+    } finally {
       setIsSubmitting(false);
-      navigate('/'); // Navigate to dashboard
-    }, 1500);
-  }
+    }
+  };
 
   return (
-    <Layout>
-      <motion.div 
-        className="space-y-6"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Payment Setup</h1>
-          <p className="text-muted-foreground mt-2">
+    <motion.div 
+      className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4 flex flex-col items-center justify-center"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="w-full max-w-2xl">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-finance-primary">Payment Setup</h1>
+          <p className="text-gray-600 mt-2">
             Add your payment details for future transactions.
           </p>
         </div>
         
-        <Card className="w-full max-w-2xl mx-auto">
+        <Card className="border-0 shadow-lg">
           <CardHeader>
             <CardTitle className="text-2xl">Payment Information</CardTitle>
             <CardDescription>
@@ -244,7 +288,11 @@ export default function PaymentSetup() {
             </Form>
           </CardContent>
         </Card>
-      </motion.div>
-    </Layout>
+
+        <div className="mt-8 text-sm text-gray-500 text-center">
+          <p>© 2025 Bellwright Finance. All rights reserved.</p>
+        </div>
+      </div>
+    </motion.div>
   );
 }

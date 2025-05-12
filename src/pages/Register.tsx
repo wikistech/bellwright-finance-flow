@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Lock, Mail, User } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -16,6 +16,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRegistration } from '@/contexts/RegistrationContext';
+import { generateVerificationCode } from '@/utils/verification';
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -26,6 +28,8 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { signUp, user } = useAuth();
+  const navigate = useNavigate();
+  const { updateRegistrationData, resetRegistrationData } = useRegistration();
   
   // Redirect if already logged in
   if (user) {
@@ -47,11 +51,26 @@ export default function Register() {
     setIsLoading(true);
     
     try {
+      // Generate verification code
+      const verificationCode = generateVerificationCode();
+      
+      // Update registration context with user details and verification code
+      resetRegistrationData();
+      updateRegistrationData({
+        email,
+        firstName,
+        lastName,
+        password,
+        verificationCode
+      });
+
+      // Sign up the user
       await signUp(email, password, firstName, lastName);
-      // The auth context will handle success toasts and redirects
+      
+      // Navigate to verification page
+      navigate('/verify-email');
     } catch (error) {
       // Errors are handled in the auth context
-    } finally {
       setIsLoading(false);
     }
   };

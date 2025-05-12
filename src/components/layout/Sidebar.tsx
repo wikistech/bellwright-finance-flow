@@ -61,7 +61,7 @@ export function Sidebar({ open, setOpen }: SidebarProps) {
 
   // Sync with parent state when provided
   useEffect(() => {
-    if (open !== undefined && mobileMenuOpen !== open) {
+    if (open !== undefined) {
       setMobileMenuOpen(open);
     }
   }, [open]);
@@ -71,7 +71,7 @@ export function Sidebar({ open, setOpen }: SidebarProps) {
     if (setOpen && mobileMenuOpen !== open) {
       setOpen(mobileMenuOpen);
     }
-  }, [mobileMenuOpen, open, setOpen]);
+  }, [mobileMenuOpen]);
 
   // Auto-collapse sidebar on mobile
   useEffect(() => {

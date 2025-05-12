@@ -11,38 +11,53 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Profile } from "@/utils/profiles";
 import { Loader2 } from "lucide-react";
 
+interface UserProfile {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  created_at?: string;
+}
+
 export function AdminDashboard() {
-  const [profiles, setProfiles] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   
   useEffect(() => {
-    const loadProfiles = async () => {
+    const loadUsers = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .order("created_at", { ascending: false });
+        // Get the list of all users
+        const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
         
-        if (error) throw error;
-        setProfiles(data || []);
-      } catch (error) {
-        console.error("Error loading profiles:", error);
+        if (authError) throw authError;
+        
+        // Format the user data
+        const userProfiles: UserProfile[] = (authUsers?.users || []).map(user => ({
+          id: user.id,
+          email: user.email,
+          created_at: user.created_at,
+          first_name: user.user_metadata?.first_name,
+          last_name: user.user_metadata?.last_name
+        }));
+        
+        setProfiles(userProfiles);
+      } catch (error: any) {
+        console.error("Error loading users:", error);
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to load user profiles.",
+          description: "Failed to load user profiles. You may not have admin permissions.",
         });
       } finally {
         setLoading(false);
       }
     };
     
-    loadProfiles();
+    loadUsers();
   }, [toast]);
   
   if (loading) {
@@ -82,7 +97,7 @@ export function AdminDashboard() {
                   </TableCell>
                   <TableCell>{profile.email}</TableCell>
                   <TableCell>
-                    {new Date(profile.created_at).toLocaleDateString()}
+                    {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : "N/A"}
                   </TableCell>
                 </TableRow>
               ))
