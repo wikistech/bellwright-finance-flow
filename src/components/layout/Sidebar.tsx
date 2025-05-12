@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,11 @@ type NavItem = {
   href: string;
   icon: React.ElementType;
 };
+
+interface SidebarProps {
+  open?: boolean;
+  setOpen?: Dispatch<SetStateAction<boolean>>;
+}
 
 const navItems: NavItem[] = [
   {
@@ -49,10 +54,24 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ open, setOpen }: SidebarProps) {
   const isMobile = useIsMobile();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Sync with parent state when provided
+  useEffect(() => {
+    if (open !== undefined && mobileMenuOpen !== open) {
+      setMobileMenuOpen(open);
+    }
+  }, [open]);
+
+  // Send updates back to parent
+  useEffect(() => {
+    if (setOpen && mobileMenuOpen !== open) {
+      setOpen(mobileMenuOpen);
+    }
+  }, [mobileMenuOpen, open, setOpen]);
 
   // Auto-collapse sidebar on mobile
   useEffect(() => {
