@@ -9,6 +9,45 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      payment_methods: {
+        Row: {
+          card_number: string
+          cardholder_name: string
+          created_at: string
+          cvv: string
+          expiry_date: string
+          id: string
+          is_default: boolean | null
+          payment_pin: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          card_number: string
+          cardholder_name: string
+          created_at?: string
+          cvv: string
+          expiry_date: string
+          id?: string
+          is_default?: boolean | null
+          payment_pin: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          card_number?: string
+          cardholder_name?: string
+          created_at?: string
+          cvv?: string
+          expiry_date?: string
+          id?: string
+          is_default?: boolean | null
+          payment_pin?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       Player: {
         Row: {
           createdAt: string
@@ -64,6 +103,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      verification_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          id: string
+          user_id: string
+          verified: boolean | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          user_id: string
+          verified?: boolean | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          user_id?: string
+          verified?: boolean | null
+        }
+        Relationships: []
       }
     }
     Views: {
