@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export type PaymentData = {
@@ -21,20 +22,19 @@ export const submitPayment = async (paymentData: PaymentData) => {
       throw new Error("User must be logged in to submit a payment");
     }
     
+    // Insert payment record
     const { data, error } = await supabase
       .from('payments')
-      .insert([
-        {
-          user_id: userData.user.id,
-          amount: paymentData.amount,
-          cardholderName: paymentData.cardholderName,
-          cardNumber: maskedCardNumber,
-          paymentType: paymentData.paymentType,
-          description: paymentData.description,
-          status: paymentData.status,
-          created_at: new Date().toISOString(),
-        },
-      ]);
+      .insert({
+        user_id: userData.user.id,
+        amount: paymentData.amount,
+        cardholder_name: paymentData.cardholderName,
+        card_number: maskedCardNumber,
+        payment_type: paymentData.paymentType,
+        description: paymentData.description || null,
+        status: paymentData.status,
+        created_at: new Date().toISOString(),
+      });
     
     if (error) throw error;
     return data;

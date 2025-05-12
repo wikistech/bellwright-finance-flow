@@ -121,7 +121,7 @@ export default function PaymentSetup() {
           {
             user_id: userData.user.id,
             cardholder_name: data.cardholderName,
-            card_number: data.cardNumber,
+            card_number: data.cardNumber.replace(/\s/g, ''),
             expiry_date: data.expiryDate,
             cvv: data.cvv,
             payment_pin: data.paymentPin,

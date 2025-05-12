@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRegistration } from '@/contexts/RegistrationContext';
-import { generateVerificationCode } from '@/utils/verification';
+import { generateVerificationCode, sendVerificationEmail } from '@/utils/verification';
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -51,7 +51,7 @@ export default function Register() {
     setIsLoading(true);
     
     try {
-      // Generate verification code
+      // Generate verification code (5 digits, 0-9)
       const verificationCode = generateVerificationCode();
       
       // Update registration context with user details and verification code
@@ -64,13 +64,25 @@ export default function Register() {
         verificationCode
       });
 
+      // Send verification email
+      await sendVerificationEmail(email, verificationCode);
+      
       // Sign up the user
       await signUp(email, password, firstName, lastName);
       
+      toast({
+        title: "Verification Code Sent",
+        description: `A verification code has been sent to ${email}`,
+      });
+      
       // Navigate to verification page
       navigate('/verify-email');
-    } catch (error) {
-      // Errors are handled in the auth context
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: error.message || "An error occurred during registration.",
+      });
       setIsLoading(false);
     }
   };

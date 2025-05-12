@@ -1,9 +1,9 @@
 
 // Utility functions for handling verification codes
 
-// Generate a random 5-character alphanumeric code (letters and numbers from 0-9)
+// Generate a random 5-digit numeric verification code (0-9)
 export function generateVerificationCode(): string {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const characters = '0123456789';
   let code = '';
   for (let i = 0; i < 5; i++) {
     const randomIndex = Math.floor(Math.random() * characters.length);

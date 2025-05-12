@@ -15,18 +15,12 @@ import {
   Menu 
 } from 'lucide-react';
 
-type NavItem = {
-  title: string;
-  href: string;
-  icon: React.ElementType;
-};
-
-interface SidebarProps {
+export interface SidebarProps {
   open?: boolean;
   setOpen?: Dispatch<SetStateAction<boolean>>;
 }
 
-const navItems: NavItem[] = [
+const navItems = [
   {
     title: "Dashboard",
     href: "/dashboard",
@@ -71,7 +65,7 @@ export function Sidebar({ open, setOpen }: SidebarProps) {
     if (setOpen && mobileMenuOpen !== open) {
       setOpen(mobileMenuOpen);
     }
-  }, [mobileMenuOpen]);
+  }, [mobileMenuOpen, open, setOpen]);
 
   // Auto-collapse sidebar on mobile
   useEffect(() => {
@@ -133,6 +127,7 @@ export function Sidebar({ open, setOpen }: SidebarProps) {
                     ? "bg-white text-finance-primary font-medium" 
                     : "text-white hover:bg-finance-secondary",
                 )}
+                onClick={() => isMobile && setMobileMenuOpen(false)}
               >
                 <item.icon className={cn("h-5 w-5", (collapsed && !mobileMenuOpen) ? "mx-auto" : "mr-3")} />
                 {(!collapsed || (isMobile && mobileMenuOpen)) && <span>{item.title}</span>}

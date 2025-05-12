@@ -132,7 +132,7 @@ export default function EmailVerification() {
         });
         setCode("");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Verification error:", error);
       toast({
         variant: "destructive",
@@ -206,6 +206,7 @@ export default function EmailVerification() {
                   maxLength={5}
                   value={code}
                   onChange={setCode}
+                  pattern="^[0-9]{1,5}$"
                   render={({ slots }) => (
                     <InputOTPGroup>
                       {slots.map((slot, index) => (

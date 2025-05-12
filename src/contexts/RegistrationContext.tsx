@@ -30,16 +30,30 @@ const initialRegistrationData: RegistrationData = {
 const RegistrationContext = createContext<RegistrationContextType | undefined>(undefined);
 
 export const RegistrationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [registrationData, setRegistrationData] = useState<RegistrationData>(initialRegistrationData);
+  const [registrationData, setRegistrationData] = useState<RegistrationData>(() => {
+    // Try to load from localStorage on init
+    const savedData = localStorage.getItem('registrationData');
+    if (savedData) {
+      try {
+        return JSON.parse(savedData);
+      } catch (e) {
+        return initialRegistrationData;
+      }
+    }
+    return initialRegistrationData;
+  });
 
   const updateRegistrationData = (data: Partial<RegistrationData>) => {
-    setRegistrationData(prev => ({
-      ...prev,
-      ...data
-    }));
+    setRegistrationData(prev => {
+      const updated = { ...prev, ...data };
+      // Save to localStorage for persistence
+      localStorage.setItem('registrationData', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const resetRegistrationData = () => {
+    localStorage.removeItem('registrationData');
     setRegistrationData(initialRegistrationData);
   };
 
