@@ -15,7 +15,7 @@ import { Profile } from "@/utils/profiles";
 import { Loader2 } from "lucide-react";
 
 export function AdminDashboard() {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   

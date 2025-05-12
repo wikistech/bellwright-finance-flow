@@ -1,5 +1,5 @@
+
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 
 export type PaymentData = {
   amount: number;
@@ -15,13 +15,20 @@ export const submitPayment = async (paymentData: PaymentData) => {
     // Mask the card number for security
     const maskedCardNumber = maskCardNumber(paymentData.cardNumber);
     
+    // Get the current user
+    const { data: userData } = await supabase.auth.getUser();
+    
+    if (!userData.user) {
+      throw new Error("User must be logged in to submit a payment");
+    }
+    
     const { data, error } = await supabase
       .from('payments')
       .insert([
         {
           ...paymentData,
           cardNumber: maskedCardNumber,
-          user_id: supabase.auth.getUser().then(res => res.data.user?.id),
+          user_id: userData.user.id,
           created_at: new Date().toISOString(),
         },
       ])
