@@ -36,13 +36,17 @@ export function UserDashboard() {
               const lastName = userData.user.user_metadata?.lastName || '';
               const email = userData.user.email || '';
               
-              setProfile({
+              // Create a local profile without saving to DB (since table doesn't exist)
+              const basicProfile: Profile = {
                 id: userData.user.id,
                 first_name: firstName,
                 last_name: lastName,
                 email: email,
                 created_at: userData.user.created_at
-              });
+                // updated_at is optional now
+              };
+              
+              setProfile(basicProfile);
             }
           } else {
             toast({

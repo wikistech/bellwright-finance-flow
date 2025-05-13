@@ -7,7 +7,7 @@ export type Profile = {
   last_name: string | null;
   email: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string; // Make updated_at optional
 };
 
 export const getProfile = async (userId: string): Promise<Profile | null> => {
@@ -22,7 +22,7 @@ export const getProfile = async (userId: string): Promise<Profile | null> => {
     return data;
   } catch (error) {
     console.error('Error fetching profile:', error);
-    return null;
+    throw error; // Throw the error to handle it in the component
   }
 };
 
