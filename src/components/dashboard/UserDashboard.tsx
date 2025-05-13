@@ -5,6 +5,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Profile, getProfile } from "@/utils/profiles";
 import { Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export function UserDashboard() {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -18,15 +19,41 @@ export function UserDashboard() {
       
       try {
         setLoading(true);
-        const profileData = await getProfile(user.id);
-        setProfile(profileData);
+        
+        // First check if profiles table exists, if not create a basic profile from auth data
+        try {
+          const profileData = await getProfile(user.id);
+          setProfile(profileData);
+        } catch (error: any) {
+          console.error("Error loading profile:", error);
+          
+          // If the error indicates the profile table doesn't exist, create a basic profile
+          if (error.message?.includes("relation") && error.message?.includes("does not exist")) {
+            // Create a basic profile from auth user data
+            const { data: userData } = await supabase.auth.getUser();
+            if (userData.user) {
+              const firstName = userData.user.user_metadata?.firstName || '';
+              const lastName = userData.user.user_metadata?.lastName || '';
+              const email = userData.user.email || '';
+              
+              setProfile({
+                id: userData.user.id,
+                first_name: firstName,
+                last_name: lastName,
+                email: email,
+                created_at: userData.user.created_at
+              });
+            }
+          } else {
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: "Failed to load user profile data.",
+            });
+          }
+        }
       } catch (error) {
-        console.error("Error loading profile:", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load user profile data.",
-        });
+        console.error("Error in profile loading:", error);
       } finally {
         setLoading(false);
       }
@@ -66,7 +93,7 @@ export function UserDashboard() {
               <span>
                 {profile?.created_at 
                   ? new Date(profile.created_at).toLocaleDateString() 
-                  : "N/A"}
+                  : user?.created_at ? new Date(user.created_at).toLocaleDateString() : "N/A"}
               </span>
             </div>
           </div>

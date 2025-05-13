@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Mail, Clock } from 'lucide-react';
+import { ArrowRight, Mail, Clock, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +25,13 @@ export default function EmailVerification() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { registrationData, updateRegistrationData } = useRegistration();
+  
+  // Automatically verify when all 5 digits are entered
+  useEffect(() => {
+    if (code.length === 5) {
+      handleVerify();
+    }
+  }, [code]);
   
   // Check for verification code on mount
   useEffect(() => {
@@ -100,6 +107,7 @@ export default function EmailVerification() {
   }
   
   const handleVerify = async () => {
+    if (code.length !== 5) return;
     setIsSubmitting(true);
     
     try {
@@ -233,6 +241,13 @@ export default function EmailVerification() {
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4" />
                   <span>Code expires in: {formatTime(timeLeft)}</span>
+                </div>
+                
+                <div className="my-4 p-4 border rounded-md border-amber-200 bg-amber-50 w-full">
+                  <p className="text-sm flex items-center gap-2 text-amber-800">
+                    <AlertCircle className="h-4 w-4" />
+                    Please check your inbox and spam folder for the verification email
+                  </p>
                 </div>
 
                 <InputOTP

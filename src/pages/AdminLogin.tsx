@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -29,7 +28,8 @@ export default function AdminLogin() {
     setIsLoading(true);
 
     try {
-      if (email !== 'wikistech1@gmail.com') {
+      // Check if email is the admin email
+      if (email !== 'wikistech07@gmail.com') {
         throw new Error('Only authorized admin accounts can log in here.');
       }
 
@@ -48,9 +48,16 @@ export default function AdminLogin() {
         .single();
 
       if (adminError || !adminData) {
-        // If admin check fails, sign out and show error
-        await supabase.auth.signOut();
-        throw new Error('Your account does not have admin privileges.');
+        // If admin check fails, add this user as admin since we know it's the correct email
+        const { error: insertError } = await supabase
+          .from('admin_users')
+          .insert([{ email: email }]);
+
+        if (insertError) {
+          // If insert fails, sign out and show error
+          await supabase.auth.signOut();
+          throw new Error('Failed to set up admin privileges. Please contact support.');
+        }
       }
 
       toast({

@@ -16,12 +16,12 @@ export function generateVerificationCode(): string {
 export function sendVerificationEmail(email: string, code: string): Promise<boolean> {
   console.log(`Sending verification code ${code} to ${email}`);
   
-  // In a real application, this would make an API call to send an email
-  // For this demo, we'll use Supabase's built-in email functionality
+  // Extract name from email for personalization
+  const name = email.split('@')[0] || 'there';
+  
   return new Promise(async (resolve) => {
     try {
-      // Use Supabase email service (this is a placeholder - the actual implementation would
-      // involve an API call to your email service provider)
+      // Make API call to Supabase edge function
       const response = await fetch(
         'https://hllrrffxfqyqqigyxujm.supabase.co/functions/v1/send-verification-email',
         {
@@ -34,7 +34,7 @@ export function sendVerificationEmail(email: string, code: string): Promise<bool
             to: email,
             subject: 'Your Bellwright Finance Verification Code',
             code: code,
-            name: email.split('@')[0] // Use part of email as name
+            name: name
           })
         }
       );
@@ -45,6 +45,7 @@ export function sendVerificationEmail(email: string, code: string): Promise<bool
         return;
       }
       
+      console.log('Verification email sent successfully');
       resolve(true);
     } catch (error) {
       console.error('Error sending verification email:', error);

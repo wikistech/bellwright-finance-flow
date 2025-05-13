@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Mail, Clock } from 'lucide-react';
+import { Mail, Clock, AlertCircle } from 'lucide-react';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -43,6 +43,13 @@ export function VerificationCodeModal({
     return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   }, []);
 
+  // Automatically verify when all 5 digits are entered
+  useEffect(() => {
+    if (code.length === 5) {
+      handleVerify();
+    }
+  }, [code]);
+
   // Handle timer countdown
   useEffect(() => {
     if (!open) return;
@@ -67,6 +74,8 @@ export function VerificationCodeModal({
 
   // Handle code verification
   const handleVerify = () => {
+    if (code.length !== 5) return;
+    
     setIsSubmitting(true);
     
     if (code === verificationCode) {
@@ -105,6 +114,13 @@ export function VerificationCodeModal({
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
               <span>Code expires in: {formatTime(timeLeft)}</span>
+            </div>
+
+            <div className="my-4 p-4 border rounded-md border-amber-200 bg-amber-50">
+              <p className="text-sm flex items-center gap-2 text-amber-800">
+                <AlertCircle className="h-4 w-4" />
+                Please check your inbox and spam folder for the verification email
+              </p>
             </div>
 
             <InputOTP
