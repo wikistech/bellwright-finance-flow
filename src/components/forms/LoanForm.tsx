@@ -30,6 +30,9 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useToast } from '@/components/ui/use-toast';
+import { LoanApplicationData, submitLoanApplication } from '@/utils/loans';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const loanFormSchema = z.object({
   loanType: z.string({
@@ -62,6 +65,8 @@ export function LoanForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [termValue, setTermValue] = useState(12);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   
   const form = useForm<LoanFormValues>({
     resolver: zodResolver(loanFormSchema),
@@ -70,7 +75,7 @@ export function LoanForm() {
       amount: "",
       term: 12,
       fullName: "",
-      email: "",
+      email: user?.email || "",
       phone: "",
       address: "",
       employment: "",
@@ -79,20 +84,56 @@ export function LoanForm() {
     },
   });
 
-  function onSubmit(data: LoanFormValues) {
+  async function onSubmit(data: LoanFormValues) {
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "You must be logged in to apply for a loan.",
+      });
+      navigate('/login');
+      return;
+    }
+
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      console.log('Loan application submitted:', data);
+    try {
+      // Convert string values to numbers
+      const loanData: LoanApplicationData = {
+        loanType: data.loanType,
+        amount: parseFloat(data.amount),
+        term: data.term,
+        fullName: data.fullName,
+        email: data.email,
+        phone: data.phone,
+        address: data.address,
+        employment: data.employment,
+        income: parseFloat(data.income),
+        purpose: data.purpose,
+      };
+      
+      await submitLoanApplication(loanData);
+      
       toast({
         title: "Loan Application Submitted",
-        description: "Your loan application has been received. We'll contact you soon.",
+        description: "Your loan application has been received and is pending approval. We'll contact you soon.",
       });
-      setIsSubmitting(false);
+      
       form.reset();
       setTermValue(12);
-    }, 1500);
+      
+      // Redirect to dashboard
+      setTimeout(() => navigate('/dashboard'), 1500);
+    } catch (error) {
+      console.error("Error submitting loan application:", error);
+      toast({
+        variant: "destructive",
+        title: "Submission Failed",
+        description: "There was an error submitting your loan application. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const handleTermChange = (value: number[]) => {

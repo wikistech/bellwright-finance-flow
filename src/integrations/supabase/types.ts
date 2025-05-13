@@ -9,6 +9,81 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admin_users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      loan_applications: {
+        Row: {
+          address: string
+          amount: number
+          approved_at: string | null
+          created_at: string
+          email: string
+          employment: string
+          full_name: string
+          id: string
+          income: number
+          loan_type: string
+          phone: string
+          purpose: string
+          status: string
+          term: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address: string
+          amount: number
+          approved_at?: string | null
+          created_at?: string
+          email: string
+          employment: string
+          full_name: string
+          id?: string
+          income: number
+          loan_type: string
+          phone: string
+          purpose: string
+          status?: string
+          term: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string
+          amount?: number
+          approved_at?: string | null
+          created_at?: string
+          email?: string
+          employment?: string
+          full_name?: string
+          id?: string
+          income?: number
+          loan_type?: string
+          phone?: string
+          purpose?: string
+          status?: string
+          term?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payment_methods: {
         Row: {
           card_number: string
@@ -48,62 +123,6 @@ export type Database = {
         }
         Relationships: []
       }
-      Player: {
-        Row: {
-          createdAt: string
-          id: string
-          name: string
-          updatedAt: string
-        }
-        Insert: {
-          createdAt?: string
-          id: string
-          name: string
-          updatedAt: string
-        }
-        Update: {
-          createdAt?: string
-          id?: string
-          name?: string
-          updatedAt?: string
-        }
-        Relationships: []
-      }
-      Score: {
-        Row: {
-          createdAt: string
-          id: string
-          opponent: string
-          playerId: string
-          points: number
-          won: boolean
-        }
-        Insert: {
-          createdAt?: string
-          id: string
-          opponent?: string
-          playerId: string
-          points: number
-          won: boolean
-        }
-        Update: {
-          createdAt?: string
-          id?: string
-          opponent?: string
-          playerId?: string
-          points?: number
-          won?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: "Score_playerId_fkey"
-            columns: ["playerId"]
-            isOneToOne: false
-            referencedRelation: "Player"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       verification_codes: {
         Row: {
           code: string
@@ -136,7 +155,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

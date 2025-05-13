@@ -9,9 +9,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface UserProfile {
   id: string;
@@ -21,44 +23,142 @@ interface UserProfile {
   created_at?: string;
 }
 
+interface LoanApplication {
+  id: string;
+  user_id: string;
+  loanType: string;
+  amount: number;
+  term: number;
+  fullName: string;
+  email: string;
+  phone: string;
+  status: string;
+  created_at: string;
+}
+
 export function AdminDashboard() {
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
+  const [loans, setLoans] = useState<LoanApplication[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'users' | 'loans'>('users');
   const { toast } = useToast();
   
   useEffect(() => {
-    const loadUsers = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
-        // Get the list of all users
+        
+        // Load users data
         const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
         
-        if (authError) throw authError;
+        if (authError) {
+          console.error("Error loading users:", authError);
+          // Still attempt to load loans even if users fail to load
+        } else {
+          // Format the user data
+          const userProfiles: UserProfile[] = (authUsers?.users || []).map(user => ({
+            id: user.id,
+            email: user.email,
+            created_at: user.created_at,
+            first_name: user.user_metadata?.first_name,
+            last_name: user.user_metadata?.last_name
+          }));
+          
+          setProfiles(userProfiles);
+        }
         
-        // Format the user data
-        const userProfiles: UserProfile[] = (authUsers?.users || []).map(user => ({
-          id: user.id,
-          email: user.email,
-          created_at: user.created_at,
-          first_name: user.user_metadata?.first_name,
-          last_name: user.user_metadata?.last_name
-        }));
-        
-        setProfiles(userProfiles);
+        // Load loan applications
+        const { data: loanData, error: loanError } = await supabase
+          .from('loan_applications')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (loanError) {
+          console.error("Error loading loans:", loanError);
+        } else {
+          setLoans(loanData || []);
+        }
       } catch (error: any) {
-        console.error("Error loading users:", error);
+        console.error("Error in admin dashboard:", error);
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to load user profiles. You may not have admin permissions.",
+          description: "Failed to load admin data. You may not have admin permissions.",
         });
       } finally {
         setLoading(false);
       }
     };
     
-    loadUsers();
+    loadData();
   }, [toast]);
+  
+  const handleApprove = async (loanId: string) => {
+    try {
+      const { error } = await supabase
+        .from('loan_applications')
+        .update({ 
+          status: 'approved',
+          approved_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', loanId);
+      
+      if (error) throw error;
+      
+      // Update the local state
+      setLoans(loans.map(loan => 
+        loan.id === loanId 
+          ? { ...loan, status: 'approved' } 
+          : loan
+      ));
+      
+      toast({
+        title: "Loan Approved",
+        description: "The loan application has been approved successfully.",
+      });
+    } catch (error) {
+      console.error("Error approving loan:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to approve the loan. Please try again.",
+      });
+    }
+  };
+  
+  const handleReject = async (loanId: string) => {
+    try {
+      const { error } = await supabase
+        .from('loan_applications')
+        .update({ 
+          status: 'rejected',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', loanId);
+      
+      if (error) throw error;
+      
+      // Update the local state
+      setLoans(loans.map(loan => 
+        loan.id === loanId 
+          ? { ...loan, status: 'rejected' } 
+          : loan
+      ));
+      
+      toast({
+        title: "Loan Rejected",
+        description: "The loan application has been rejected.",
+      });
+    } catch (error) {
+      console.error("Error rejecting loan:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to reject the loan. Please try again.",
+      });
+    }
+  };
   
   if (loading) {
     return (
@@ -71,39 +171,134 @@ export function AdminDashboard() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>User Management</CardTitle>
+        <CardTitle className="flex justify-between items-center">
+          <span>Admin Dashboard</span>
+          <div className="flex space-x-2">
+            <Button 
+              variant={activeTab === 'users' ? "default" : "outline"} 
+              onClick={() => setActiveTab('users')}
+            >
+              Users
+            </Button>
+            <Button 
+              variant={activeTab === 'loans' ? "default" : "outline"} 
+              onClick={() => setActiveTab('loans')}
+            >
+              Loan Applications
+            </Button>
+          </div>
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Joined</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {profiles.length === 0 ? (
+        {activeTab === 'users' && (
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={3} className="text-center">
-                  No users found
-                </TableCell>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Joined</TableHead>
               </TableRow>
-            ) : (
-              profiles.map((profile) => (
-                <TableRow key={profile.id}>
-                  <TableCell>
-                    {`${profile.first_name || ""} ${profile.last_name || ""}`}
-                  </TableCell>
-                  <TableCell>{profile.email}</TableCell>
-                  <TableCell>
-                    {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : "N/A"}
+            </TableHeader>
+            <TableBody>
+              {profiles.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center">
+                    No users found
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                profiles.map((profile) => (
+                  <TableRow key={profile.id}>
+                    <TableCell>
+                      {`${profile.first_name || ""} ${profile.last_name || ""}`}
+                    </TableCell>
+                    <TableCell>{profile.email}</TableCell>
+                    <TableCell>
+                      {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : "N/A"}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
+        
+        {activeTab === 'loans' && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loans.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center">
+                    No loan applications found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                loans.map((loan) => (
+                  <TableRow key={loan.id}>
+                    <TableCell>{loan.fullName}</TableCell>
+                    <TableCell>
+                      {loan.loanType.charAt(0).toUpperCase() + loan.loanType.slice(1)}
+                    </TableCell>
+                    <TableCell>${loan.amount.toLocaleString()}</TableCell>
+                    <TableCell>
+                      {new Date(loan.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        className={
+                          loan.status === 'approved' 
+                            ? 'bg-green-500' 
+                            : loan.status === 'rejected'
+                            ? 'bg-red-500'
+                            : 'bg-yellow-500'
+                        }
+                      >
+                        {loan.status.toUpperCase()}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {loan.status === 'pending' && (
+                        <div className="flex space-x-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="flex items-center text-green-500 border-green-500 hover:bg-green-50"
+                            onClick={() => handleApprove(loan.id)}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="flex items-center text-red-500 border-red-500 hover:bg-red-50"
+                            onClick={() => handleReject(loan.id)}
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+                      {loan.status !== 'pending' && (
+                        <span className="text-gray-500 italic">Processed</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
       </CardContent>
     </Card>
   );
