@@ -96,7 +96,7 @@ export function VerificationCodeModal({
             Email Verification
           </DialogTitle>
           <DialogDescription>
-            Please enter the 6-digit verification code sent to {email}
+            Please enter the 5-digit verification code sent to {email}
           </DialogDescription>
         </DialogHeader>
         
@@ -108,9 +108,10 @@ export function VerificationCodeModal({
             </div>
 
             <InputOTP
-              maxLength={6}
+              maxLength={5}
               value={code}
               onChange={setCode}
+              pattern="^[0-9]{1,5}$"
               render={({ slots }) => (
                 <InputOTPGroup>
                   {slots.map((slot, index) => (
@@ -125,7 +126,7 @@ export function VerificationCodeModal({
             <Button
               onClick={handleVerify}
               className="w-full bg-finance-primary hover:bg-finance-secondary"
-              disabled={code.length !== 6 || isSubmitting}
+              disabled={code.length !== 5 || isSubmitting}
             >
               {isSubmitting ? "Verifying..." : "Verify Code"}
             </Button>

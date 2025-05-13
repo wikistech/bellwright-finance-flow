@@ -26,31 +26,44 @@ export default function EmailVerification() {
   const navigate = useNavigate();
   const { registrationData, updateRegistrationData } = useRegistration();
   
-  // Generate verification code on mount
+  // Check for verification code on mount
   useEffect(() => {
     if (!registrationData.email) {
       return;
     }
     
+    // If no verification code in context, attempt to load from database
     if (!registrationData.verificationCode) {
-      const newCode = generateVerificationCode();
-      updateRegistrationData({ verificationCode: newCode });
+      const loadVerificationCode = async () => {
+        try {
+          const { data: userData } = await supabase.auth.getUser();
+          
+          if (userData.user) {
+            const { data: codeData, error } = await supabase
+              .from('verification_codes')
+              .select('code')
+              .eq('user_id', userData.user.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single();
+            
+            if (error) throw error;
+            
+            if (codeData) {
+              updateRegistrationData({ verificationCode: codeData.code });
+            } else {
+              // No code found, generate and send a new one
+              await handleResendCode();
+            }
+          }
+        } catch (error) {
+          console.error("Error loading verification code:", error);
+          // Generate and send a new code if loading fails
+          handleResendCode();
+        }
+      };
       
-      // Send verification code to user's email
-      sendVerificationEmail(registrationData.email, newCode)
-        .then(() => {
-          toast({
-            title: "Verification Code Sent",
-            description: `A verification code has been sent to ${registrationData.email}`,
-          });
-        })
-        .catch(() => {
-          toast({
-            variant: "destructive",
-            title: "Failed to Send Code",
-            description: "There was an error sending the verification code. Please try again.",
-          });
-        });
+      loadVerificationCode();
     }
     
     // Start timer
@@ -59,13 +72,7 @@ export default function EmailVerification() {
         if (prevTime <= 1) {
           clearInterval(timer);
           // Generate a new code when timer expires
-          const newCode = generateVerificationCode();
-          updateRegistrationData({ verificationCode: newCode });
-          sendVerificationEmail(registrationData.email, newCode);
-          toast({
-            title: "New Code Sent",
-            description: "Your verification code has expired. A new code has been sent to your email.",
-          });
+          handleResendCode();
           return 5 * 60; // Reset to 5 minutes
         }
         return prevTime - 1;
@@ -73,7 +80,7 @@ export default function EmailVerification() {
     }, 1000);
     
     return () => clearInterval(timer);
-  }, [registrationData.email, registrationData.verificationCode, toast, updateRegistrationData]);
+  }, [registrationData.email, registrationData.verificationCode, updateRegistrationData]);
   
   // Format time as mm:ss
   const formatTime = (seconds: number) => {
@@ -96,25 +103,22 @@ export default function EmailVerification() {
     setIsSubmitting(true);
     
     try {
+      // Validate code against what's in context
       if (code === registrationData.verificationCode) {
-        // Store verification in Supabase
+        // Mark verification code as verified in database
         const { data: userData } = await supabase.auth.getUser();
         
         if (userData.user) {
           const { error } = await supabase
             .from('verification_codes')
-            .insert([
-              { 
-                user_id: userData.user.id, 
-                code: registrationData.verificationCode,
-                expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-                verified: true
-              }
-            ]);
+            .update({ verified: true })
+            .eq('user_id', userData.user.id)
+            .eq('code', code);
           
           if (error) throw error;
         }
         
+        // Update registration context
         updateRegistrationData({ isVerified: true });
         
         toast({
@@ -144,24 +148,53 @@ export default function EmailVerification() {
     }
   };
   
-  const handleResendCode = () => {
-    const newCode = generateVerificationCode();
-    updateRegistrationData({ verificationCode: newCode });
-    sendVerificationEmail(registrationData.email, newCode)
-      .then(() => {
-        toast({
-          title: "Code Resent",
-          description: "A new verification code has been sent to your email.",
-        });
-        setTimeLeft(5 * 60); // Reset timer to 5 minutes
-      })
-      .catch(() => {
-        toast({
-          variant: "destructive",
-          title: "Failed to Resend Code",
-          description: "There was an error sending the verification code. Please try again.",
-        });
+  const handleResendCode = async () => {
+    try {
+      // Generate new code
+      const newCode = generateVerificationCode();
+      
+      // Update in database
+      const { data: userData } = await supabase.auth.getUser();
+      
+      if (userData.user) {
+        const { error } = await supabase
+          .from('verification_codes')
+          .insert([
+            { 
+              user_id: userData.user.id, 
+              code: newCode,
+              expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+            }
+          ]);
+        
+        if (error) throw error;
+      }
+      
+      // Update in context
+      updateRegistrationData({ verificationCode: newCode });
+      
+      // Send email
+      const emailSent = await sendVerificationEmail(registrationData.email, newCode);
+      
+      if (!emailSent) {
+        throw new Error("Failed to send verification email");
+      }
+      
+      toast({
+        title: "Code Resent",
+        description: "A new verification code has been sent to your email.",
       });
+      
+      // Reset timer
+      setTimeLeft(5 * 60);
+    } catch (error: any) {
+      console.error("Error resending code:", error);
+      toast({
+        variant: "destructive",
+        title: "Failed to Resend Code",
+        description: error.message || "There was an error sending the verification code. Please try again.",
+      });
+    }
   };
   
   return (

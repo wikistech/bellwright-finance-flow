@@ -12,16 +12,44 @@ export function generateVerificationCode(): string {
   return code;
 }
 
-// Mock function to simulate sending email with verification code
+// Function to send email with verification code
 export function sendVerificationEmail(email: string, code: string): Promise<boolean> {
   console.log(`Sending verification code ${code} to ${email}`);
   
   // In a real application, this would make an API call to send an email
-  // For this demo, we'll simulate a successful email send
-  return new Promise((resolve) => {
-    setTimeout(() => {
+  // For this demo, we'll use Supabase's built-in email functionality
+  return new Promise(async (resolve) => {
+    try {
+      // Use Supabase email service (this is a placeholder - the actual implementation would
+      // involve an API call to your email service provider)
+      const response = await fetch(
+        'https://hllrrffxfqyqqigyxujm.supabase.co/functions/v1/send-verification-email',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsbHJyZmZ4ZnF5cXFpZ3l4dWptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY1MTcyMTcsImV4cCI6MjA2MjA5MzIxN30.t-mBv3a3i2CKW3r4jRgm7E6hh2g2OihJqnUbvnAM7CM`
+          },
+          body: JSON.stringify({
+            to: email,
+            subject: 'Your Bellwright Finance Verification Code',
+            code: code,
+            name: email.split('@')[0] // Use part of email as name
+          })
+        }
+      );
+      
+      if (!response.ok) {
+        console.error('Failed to send verification email:', await response.text());
+        resolve(false);
+        return;
+      }
+      
       resolve(true);
-    }, 1000);
+    } catch (error) {
+      console.error('Error sending verification email:', error);
+      resolve(false);
+    }
   });
 }
 

@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRegistration } from '@/contexts/RegistrationContext';
 import { generateVerificationCode, sendVerificationEmail } from '@/utils/verification';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -64,15 +65,38 @@ export default function Register() {
         verificationCode
       });
 
-      // Send verification email
-      await sendVerificationEmail(email, verificationCode);
-      
-      // Sign up the user
+      // Sign up the user first
       await signUp(email, password, firstName, lastName);
+      
+      // Store verification code in database for later verification
+      const { data: userData } = await supabase.auth.getUser();
+      
+      if (userData.user) {
+        const { error } = await supabase
+          .from('verification_codes')
+          .insert([
+            { 
+              user_id: userData.user.id, 
+              code: verificationCode,
+              expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+            }
+          ]);
+        
+        if (error) {
+          console.error("Error storing verification code:", error);
+        }
+      }
+
+      // Send verification email with the code
+      const emailSent = await sendVerificationEmail(email, verificationCode);
+      
+      if (!emailSent) {
+        throw new Error("Failed to send verification email. Please try again.");
+      }
       
       toast({
         title: "Verification Code Sent",
-        description: `A verification code has been sent to ${email}`,
+        description: `A verification code has been sent to ${email}. Please check your email to complete registration.`,
       });
       
       // Navigate to verification page
@@ -83,6 +107,7 @@ export default function Register() {
         title: "Registration Failed",
         description: error.message || "An error occurred during registration.",
       });
+    } finally {
       setIsLoading(false);
     }
   };
