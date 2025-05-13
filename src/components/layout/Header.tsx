@@ -1,24 +1,38 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface HeaderProps {
   transparent?: boolean;
+  onMenuClick?: () => void;
 }
 
-export default function Header({ transparent = false }: HeaderProps) {
+export default function Header({ transparent = false, onMenuClick }: HeaderProps) {
   const { user, signOut } = useAuth();
 
   return (
     <header className={`w-full py-4 ${transparent ? 'absolute top-0 left-0 z-10' : 'bg-white shadow-sm'}`}>
       <div className="container mx-auto px-4 flex justify-between items-center">
-        <Link to="/" className="flex items-center">
-          <span className={`text-2xl font-bold ${transparent ? 'text-white' : 'text-finance-primary'}`}>
-            Bellwright Finance
-          </span>
-        </Link>
+        <div className="flex items-center gap-2">
+          {onMenuClick && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="md:hidden" 
+              onClick={onMenuClick}
+            >
+              <Menu size={20} />
+            </Button>
+          )}
+          <Link to="/" className="flex items-center">
+            <span className={`text-2xl font-bold ${transparent ? 'text-white' : 'text-finance-primary'}`}>
+              Bellwright Finance
+            </span>
+          </Link>
+        </div>
 
         <nav className="hidden md:flex items-center space-x-8">
           <Link to="/about" className={`${transparent ? 'text-white hover:text-gray-200' : 'text-gray-600 hover:text-finance-primary'} transition-colors`}>
