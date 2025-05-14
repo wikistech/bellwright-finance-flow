@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
+// Define the Profile type
 export type Profile = {
   id: string;
   first_name: string | null;
@@ -17,31 +18,64 @@ export const getProfile = async (userId: string): Promise<Profile | null> => {
       .select('*')
       .eq('id', userId)
       .single();
-    
+      
     if (error) throw error;
     return data;
   } catch (error) {
     console.error('Error fetching profile:', error);
-    throw error; // Throw the error to handle it in the component
+    return null;
   }
 };
 
-export const updateProfile = async (userId: string, updates: Partial<Profile>): Promise<Profile | null> => {
+export const updateProfile = async (userId: string, updates: Partial<Profile>) => {
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('profiles')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', userId)
-      .select()
-      .single();
-    
+      .update(updates)
+      .eq('id', userId);
+      
     if (error) throw error;
-    return data;
+    return true;
   } catch (error) {
     console.error('Error updating profile:', error);
-    return null;
+    return false;
+  }
+};
+
+// Create a profile if it doesn't exist
+export const createProfileIfNotExists = async (
+  userId: string, 
+  firstName: string, 
+  lastName: string, 
+  email: string
+): Promise<boolean> => {
+  try {
+    // Check if profile exists
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .single();
+    
+    // If profile exists, no need to create
+    if (existingProfile) return true;
+    
+    // Create new profile
+    const { error } = await supabase
+      .from('profiles')
+      .insert([
+        { 
+          id: userId,
+          first_name: firstName,
+          last_name: lastName,
+          email: email
+        }
+      ]);
+    
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error in createProfileIfNotExists:', error);
+    return false;
   }
 };

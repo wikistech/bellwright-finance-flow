@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -20,20 +21,28 @@ export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Clear error message when inputs change
+  const handleInputChange = (setter: React.Dispatch<React.SetStateAction<string>>, value: string) => {
+    if (errorMessage) setErrorMessage('');
+    setter(value);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMessage('');
 
     try {
-      // Check if email is the admin email
+      // Check if email is the admin email - using the specified email
       if (email !== 'wikistech07@gmail.com') {
         throw new Error('Only authorized admin accounts can log in here.');
       }
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -67,6 +76,7 @@ export default function AdminLogin() {
 
       navigate('/admin/dashboard');
     } catch (error: any) {
+      setErrorMessage(error.message || 'An error occurred during login.');
       toast({
         variant: 'destructive',
         title: 'Login Failed',
@@ -105,6 +115,17 @@ export default function AdminLogin() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {errorMessage && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 relative">
+                {errorMessage}
+                <button 
+                  className="absolute top-0 right-0 p-2" 
+                  onClick={() => setErrorMessage('')}
+                >
+                  ×
+                </button>
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -116,7 +137,7 @@ export default function AdminLogin() {
                     placeholder="admin@example.com"
                     className="pl-10"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => handleInputChange(setEmail, e.target.value)}
                     required
                   />
                 </div>
@@ -132,7 +153,7 @@ export default function AdminLogin() {
                     placeholder="••••••••"
                     className="pl-10"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => handleInputChange(setPassword, e.target.value)}
                     required
                   />
                 </div>

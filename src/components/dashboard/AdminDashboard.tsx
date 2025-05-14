@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, CheckCircle, XCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, CreditCard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface UserProfile {
@@ -36,11 +36,21 @@ interface LoanApplication {
   created_at: string;
 }
 
+interface PaymentMethod {
+  id: string;
+  user_id: string;
+  cardholder_name: string;
+  card_number: string;
+  expiry_date: string;
+  created_at: string;
+}
+
 export function AdminDashboard() {
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
   const [loans, setLoans] = useState<LoanApplication[]>([]);
+  const [payments, setPayments] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'loans'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'loans' | 'payments'>('users');
   const { toast } = useToast();
   
   useEffect(() => {
@@ -53,7 +63,7 @@ export function AdminDashboard() {
         
         if (authError) {
           console.error("Error loading users:", authError);
-          // Still attempt to load loans even if users fail to load
+          // Still attempt to load other data even if users fail to load
         } else {
           // Format the user data
           const userProfiles: UserProfile[] = (authUsers?.users || []).map(user => ({
@@ -78,6 +88,19 @@ export function AdminDashboard() {
         } else {
           setLoans(loanData || []);
         }
+
+        // Load payment methods
+        const { data: paymentData, error: paymentError } = await supabase
+          .from('payment_methods')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (paymentError) {
+          console.error("Error loading payments:", paymentError);
+        } else {
+          setPayments(paymentData || []);
+        }
+        
       } catch (error: any) {
         console.error("Error in admin dashboard:", error);
         toast({
@@ -186,6 +209,12 @@ export function AdminDashboard() {
             >
               Loan Applications
             </Button>
+            <Button 
+              variant={activeTab === 'payments' ? "default" : "outline"} 
+              onClick={() => setActiveTab('payments')}
+            >
+              Payment Methods
+            </Button>
           </div>
         </CardTitle>
       </CardHeader>
@@ -292,6 +321,44 @@ export function AdminDashboard() {
                       {loan.status !== 'pending' && (
                         <span className="text-gray-500 italic">Processed</span>
                       )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
+
+        {activeTab === 'payments' && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Cardholder</TableHead>
+                <TableHead>Card Number</TableHead>
+                <TableHead>Expiry Date</TableHead>
+                <TableHead>Added On</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {payments.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center">
+                    No payment methods found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                payments.map((payment) => (
+                  <TableRow key={payment.id}>
+                    <TableCell>{payment.cardholder_name}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center">
+                        <CreditCard className="h-4 w-4 mr-2 text-gray-400" />
+                        {payment.card_number}
+                      </div>
+                    </TableCell>
+                    <TableCell>{payment.expiry_date}</TableCell>
+                    <TableCell>
+                      {new Date(payment.created_at).toLocaleDateString()}
                     </TableCell>
                   </TableRow>
                 ))

@@ -81,14 +81,16 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Verification email sent successfully'
+        message: 'Verification email sent successfully',
+        subject: 'Your Bellwright Finance Verification Code',
+        body: emailBody.substring(0, 200) + '...' // Log a preview of the email body
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 
       }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error sending verification email:', error);
     
     return new Response(
