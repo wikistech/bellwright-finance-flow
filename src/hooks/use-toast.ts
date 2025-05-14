@@ -153,6 +153,7 @@ function toast({ ...props }: Toast) {
     type: "ADD_TOAST",
     toast: {
       ...props,
+      id, // Fixed: Adding the id here
       open: true,
       onOpenChange: (open) => {
         if (!open) dismiss()

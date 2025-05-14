@@ -37,7 +37,7 @@ export default function AdminLogin() {
     setErrorMessage('');
 
     try {
-      // Check if email is the admin email - using the specified email
+      // Use hardcoded admin credentials for validation
       if (email !== 'wikistech07@gmail.com') {
         throw new Error('Only authorized admin accounts can log in here.');
       }
@@ -121,6 +121,7 @@ export default function AdminLogin() {
                 <button 
                   className="absolute top-0 right-0 p-2" 
                   onClick={() => setErrorMessage('')}
+                  type="button"
                 >
                   ×
                 </button>
