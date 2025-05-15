@@ -37,16 +37,21 @@ export default function AdminLogin() {
     setErrorMessage('');
 
     try {
-      // The correct admin credentials are hard-coded for validation
+      // Hardcoded admin credentials - DO NOT display these in the UI
       const adminEmail = 'wikistech07@gmail.com';
       const adminPassword = 'Adminlogin01';
       
-      // Verify email first
-      if (email !== adminEmail) {
+      // First check if the email is correct
+      if (email.toLowerCase() !== adminEmail.toLowerCase()) {
         throw new Error('Only authorized admin accounts can log in here.');
       }
+      
+      // Then check if the password is correct
+      if (password !== adminPassword) {
+        throw new Error('Invalid password. Please try again.');
+      }
 
-      // Direct supabase sign in
+      // If both are correct, sign in with Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
         email: adminEmail,
         password: adminPassword
