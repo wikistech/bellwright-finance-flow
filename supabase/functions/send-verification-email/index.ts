@@ -35,10 +35,10 @@ serve(async (req) => {
       );
     }
 
-    // Log email details
+    // Log email details for debugging
     console.log(`Sending email to ${to} with subject "${subject}" and code "${code}"`);
 
-    // Create improved email body
+    // Create improved email body with Bellwright Finance branding
     const emailBody = `
       <html>
         <head>
@@ -50,21 +50,22 @@ serve(async (req) => {
             .code { font-size: 32px; font-weight: bold; text-align: center; padding: 15px; margin: 20px 0; background-color: #e5e7eb; border-radius: 8px; letter-spacing: 10px; }
             .footer { font-size: 12px; text-align: center; margin-top: 30px; color: #6b7280; padding: 20px; }
             .message { margin-bottom: 20px; font-size: 16px; line-height: 1.8; }
+            .logo { font-size: 24px; font-weight: bold; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1>Bellwright Finance</h1>
+              <div class="logo">Bellwright Finance</div>
             </div>
             <div class="content">
               <p class="message">Hi ${name || 'there'},</p>
-              <p class="message">Welcome to bellwright-finance, your all-in-one financial hub for individuals, businesses & organizations!</p>
-              <p class="message">Manage money, invest, borrow & do more globally – all from your secure bellwright-finance Dashboard.</p>
+              <p class="message">Welcome to Bellwright Finance, your all-in-one financial hub for individuals, businesses & organizations!</p>
+              <p class="message">Manage money, invest, borrow & do more globally – all from your secure Bellwright Finance Dashboard.</p>
               <p class="message">Simply verify your email address with this verification code to get started:</p>
               <div class="code">${code}</div>
-              <p class="message">Thanks for choosing us!</p>
-              <p class="message">The bellwright-finance Account Team</p>
+              <p class="message">Thanks for choosing Bellwright Finance!</p>
+              <p class="message">The Bellwright Finance Account Team</p>
             </div>
             <div class="footer">
               <p>&copy; 2025 Bellwright Finance. All rights reserved.</p>

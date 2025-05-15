@@ -37,14 +37,19 @@ export default function AdminLogin() {
     setErrorMessage('');
 
     try {
-      // Use hardcoded admin credentials for validation
-      if (email !== 'wikistech07@gmail.com') {
+      // The correct admin credentials are hard-coded for validation
+      const adminEmail = 'wikistech07@gmail.com';
+      const adminPassword = 'Adminlogin01';
+      
+      // Verify email first
+      if (email !== adminEmail) {
         throw new Error('Only authorized admin accounts can log in here.');
       }
 
+      // Direct supabase sign in
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: adminEmail,
+        password: adminPassword
       });
 
       if (error) throw error;
@@ -53,14 +58,14 @@ export default function AdminLogin() {
       const { data: adminData, error: adminError } = await supabase
         .from('admin_users')
         .select('*')
-        .eq('email', email)
+        .eq('email', adminEmail)
         .single();
 
       if (adminError || !adminData) {
         // If admin check fails, add this user as admin since we know it's the correct email
         const { error: insertError } = await supabase
           .from('admin_users')
-          .insert([{ email: email }]);
+          .insert([{ email: adminEmail }]);
 
         if (insertError) {
           // If insert fails, sign out and show error
@@ -111,9 +116,7 @@ export default function AdminLogin() {
           <CardHeader>
             <CardTitle className="text-2xl text-center">Admin Login</CardTitle>
             <CardDescription className="text-center">
-              Admin credential: <br/>
-              Email: wikistech07@gmail.com <br/>
-              Password: Adminlogin01
+              Enter your admin credentials to access the dashboard
             </CardDescription>
           </CardHeader>
           <CardContent>

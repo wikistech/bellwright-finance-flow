@@ -32,7 +32,7 @@ export function sendVerificationEmail(email: string, code: string): Promise<bool
           },
           body: JSON.stringify({
             to: email,
-            subject: 'Your Bellwright Finance Verification Code',
+            subject: 'Bellwright Finance: Your Verification Code',
             code: code,
             name: name
           })
