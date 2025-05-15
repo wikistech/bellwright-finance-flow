@@ -35,15 +35,6 @@ export default function Header({ transparent = false, onMenuClick }: HeaderProps
         </div>
 
         <nav className="hidden md:flex items-center space-x-8">
-          <Link to="/about" className={`${transparent ? 'text-white hover:text-gray-200' : 'text-gray-600 hover:text-finance-primary'} transition-colors`}>
-            About
-          </Link>
-          <Link to="/services" className={`${transparent ? 'text-white hover:text-gray-200' : 'text-gray-600 hover:text-finance-primary'} transition-colors`}>
-            Services
-          </Link>
-          <Link to="/contact" className={`${transparent ? 'text-white hover:text-gray-200' : 'text-gray-600 hover:text-finance-primary'} transition-colors`}>
-            Contact
-          </Link>
           <Link to="/admin" className={`flex items-center space-x-1 ${transparent ? 'text-white hover:text-gray-200' : 'text-gray-600 hover:text-finance-primary'} transition-colors`}>
             <ShieldCheck className="h-4 w-4" />
             <span>Admin</span>

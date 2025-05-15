@@ -111,7 +111,9 @@ export default function AdminLogin() {
           <CardHeader>
             <CardTitle className="text-2xl text-center">Admin Login</CardTitle>
             <CardDescription className="text-center">
-              Enter your admin credentials to access the dashboard
+              Admin credential: <br/>
+              Email: wikistech07@gmail.com <br/>
+              Password: Adminlogin01
             </CardDescription>
           </CardHeader>
           <CardContent>
