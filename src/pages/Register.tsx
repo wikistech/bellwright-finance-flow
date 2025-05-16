@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Lock, Mail, User } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -54,6 +54,7 @@ export default function Register() {
     try {
       // Generate verification code (5 digits, 0-9)
       const verificationCode = generateVerificationCode();
+      console.log("Generated verification code:", verificationCode); // Debug log
       
       // Update registration context with user details and verification code
       resetRegistrationData();
