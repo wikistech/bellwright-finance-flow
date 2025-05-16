@@ -38,7 +38,7 @@ serve(async (req) => {
     // Log email details for debugging
     console.log(`Sending verification code ${code} to ${to}`);
 
-    // Create improved email body with Bellwright Finance branding
+    // Create improved email body with Bellwright Finance branding and prominent verification code display
     const emailBody = `
       <html>
         <head>
