@@ -23,14 +23,28 @@ export const AdminRoute: React.FC = () => {
       try {
         const { data, error } = await supabase
           .from('admin_users')
-          .select('*')
+          .select('status')
           .eq('email', user.email)
           .single();
         
         if (error) throw error;
         
-        // User is in the admin table
-        setIsAdmin(!!data);
+        // User is an approved admin
+        setIsAdmin(data && data.status === 'approved');
+        
+        if (data && data.status === 'pending') {
+          toast({
+            title: "Account Pending Approval",
+            description: "Your admin account is pending approval by a superadmin.",
+            variant: "default"
+          });
+        } else if (data && data.status === 'rejected') {
+          toast({
+            title: "Account Access Denied",
+            description: "Your admin account request has been rejected.",
+            variant: "destructive"
+          });
+        }
       } catch (error) {
         console.error('Error checking admin status:', error);
         setIsAdmin(false);
@@ -44,7 +58,7 @@ export const AdminRoute: React.FC = () => {
     } else {
       setIsCheckingAdmin(false);
     }
-  }, [user]);
+  }, [user, toast]);
   
   if (isLoading || isCheckingAdmin) {
     return (
@@ -60,7 +74,7 @@ export const AdminRoute: React.FC = () => {
   }
   
   if (!isAdmin) {
-    // User is logged in but not an admin
+    // User is logged in but not an approved admin
     toast({
       variant: "destructive",
       title: "Access Denied",
@@ -69,7 +83,7 @@ export const AdminRoute: React.FC = () => {
     return <Navigate to="/" replace />;
   }
   
-  // User is logged in and is an admin
+  // User is logged in and is an approved admin
   return <Outlet />;
 };
 

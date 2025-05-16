@@ -11,22 +11,40 @@ export type Database = {
     Tables: {
       admin_users: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           created_at: string
           email: string
+          first_name: string | null
           id: string
+          last_name: string | null
           password: string | null
+          rejected_at: string | null
+          status: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           email: string
+          first_name?: string | null
           id: string
+          last_name?: string | null
           password?: string | null
+          rejected_at?: string | null
+          status?: string
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           email?: string
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           password?: string | null
+          rejected_at?: string | null
+          status?: string
         }
         Relationships: []
       }
@@ -126,6 +144,30 @@ export type Database = {
         }
         Relationships: []
       }
+      superadmin_users: {
+        Row: {
+          created_at: string
+          email: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+        }
+        Relationships: []
+      }
       verification_codes: {
         Row: {
           code: string
@@ -159,6 +201,10 @@ export type Database = {
     }
     Functions: {
       is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_superadmin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }

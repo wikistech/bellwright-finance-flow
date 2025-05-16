@@ -8,6 +8,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { RegistrationProvider } from "./contexts/RegistrationContext";
 import PrivateRoute from "./components/auth/PrivateRoute";
 import AdminRoute from "./components/auth/AdminRoute";
+import SuperAdminRoute from "./components/auth/SuperAdminRoute";
 import AdminPortalLink from "./components/layout/AdminPortalLink";
 
 import Index from "./pages/Index";
@@ -23,7 +24,10 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import AdminLogin from "./pages/AdminLogin";
 import AdminRegister from "./pages/AdminRegister";
+import SuperAdminLogin from "./pages/SuperAdminLogin";
+import SuperAdminRegister from "./pages/SuperAdminRegister";
 import AdminDashboard from "./pages/AdminDashboard";
+import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import AdminUsers from "./pages/AdminUsers";
 import AdminLoans from "./pages/AdminLoans";
 import { supabase } from "./integrations/supabase/client";
@@ -49,6 +53,10 @@ const App = () => (
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/admin/register" element={<AdminRegister />} />
               
+              {/* SuperAdmin Auth Routes (public) */}
+              <Route path="/superadmin/login" element={<SuperAdminLogin />} />
+              <Route path="/superadmin/register" element={<SuperAdminRegister />} />
+              
               {/* Protected Routes */}
               <Route element={<PrivateRoute />}>
                 <Route path="/dashboard" element={<Index />} />
@@ -63,6 +71,11 @@ const App = () => (
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/loans" element={<AdminLoans />} />
+              </Route>
+              
+              {/* SuperAdmin Protected Routes */}
+              <Route element={<SuperAdminRoute />}>
+                <Route path="/superadmin/dashboard" element={<SuperAdminDashboard />} />
               </Route>
               
               <Route path="*" element={<NotFound />} />

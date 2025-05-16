@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
-export default function AdminLogin() {
+export default function SuperAdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -42,37 +42,25 @@ export default function AdminLogin() {
       // Sign in with Supabase
       await signIn(email, password);
       
-      // Check if user is an admin
+      // Check if user is a superadmin
       const { data, error } = await supabase
-        .from('admin_users')
-        .select('status')
+        .from('superadmin_users')
+        .select('*')
         .eq('email', email.toLowerCase())
         .single();
 
       if (error || !data) {
-        // Force sign out if not admin
+        // Force sign out if not superadmin
         await supabase.auth.signOut();
-        throw new Error('Only authorized admin accounts can log in here.');
-      }
-
-      if (data.status === 'pending') {
-        // Force sign out if admin is pending
-        await supabase.auth.signOut();
-        throw new Error('Your admin account is pending approval by a superadmin.');
-      }
-
-      if (data.status === 'rejected') {
-        // Force sign out if admin is rejected
-        await supabase.auth.signOut();
-        throw new Error('Your admin account has been rejected or deactivated.');
+        throw new Error('Only authorized superadmin accounts can log in here.');
       }
 
       toast({
-        title: 'Admin Login Successful',
-        description: 'Welcome to the admin dashboard.',
+        title: 'SuperAdmin Login Successful',
+        description: 'Welcome to the superadmin dashboard.',
       });
 
-      navigate('/admin/dashboard');
+      navigate('/superadmin/dashboard');
     } catch (error: any) {
       setErrorMessage(error.message || 'An error occurred during login.');
       toast({
@@ -86,7 +74,7 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col justify-center items-center p-4">
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white flex flex-col justify-center items-center p-4">
       <Link to="/" className="absolute top-4 left-4 text-gray-600 hover:text-finance-primary transition-colors">
         <span className="flex items-center">
           <ArrowRight className="mr-1 rotate-180" />
@@ -102,17 +90,17 @@ export default function AdminLogin() {
       >
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-finance-primary">Bellwright Finance</h1>
-          <p className="text-gray-600 mt-2">Admin Portal</p>
+          <p className="text-gray-600 mt-2">SuperAdmin Portal</p>
         </div>
         
         <Card className="border-0 shadow-lg">
           <CardHeader>
             <CardTitle className="text-2xl text-center flex items-center justify-center gap-2">
               <Shield className="h-6 w-6" />
-              Admin Login
+              SuperAdmin Login
             </CardTitle>
             <CardDescription className="text-center">
-              Enter your admin credentials to access the dashboard
+              Enter your superadmin credentials to access the dashboard
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -136,7 +124,7 @@ export default function AdminLogin() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="admin@example.com"
+                    placeholder="superadmin@example.com"
                     className="pl-10"
                     value={email}
                     onChange={(e) => handleInputChange(setEmail, e.target.value)}
@@ -163,7 +151,7 @@ export default function AdminLogin() {
               
               <Button 
                 type="submit" 
-                className="w-full bg-finance-primary hover:bg-finance-secondary" 
+                className="w-full bg-indigo-600 hover:bg-indigo-700" 
                 disabled={isLoading}
               >
                 {isLoading ? "Logging in..." : "Login"}
@@ -172,23 +160,16 @@ export default function AdminLogin() {
           </CardContent>
           <CardFooter className="flex justify-center flex-col space-y-4">
             <p className="text-sm text-gray-600">
-              Need an admin account?{" "}
-              <Link to="/admin/register" className="text-finance-primary hover:underline">
-                Register as admin
+              Need a superadmin account?{" "}
+              <Link to="/superadmin/register" className="text-indigo-600 hover:underline">
+                Register as superadmin
               </Link>
             </p>
-            <div className="text-xs text-gray-500 text-center border-t pt-4 mt-2">
-              <p>Note: Admin accounts require approval by a superadmin before access is granted.</p>
-            </div>
             <div className="w-full border-t pt-4">
-              <p className="text-sm text-gray-600 text-center flex items-center justify-center space-x-4">
-                <Link to="/login" className="text-finance-primary hover:underline flex items-center">
+              <p className="text-sm text-gray-600 text-center">
+                <Link to="/admin/login" className="text-finance-primary hover:underline flex items-center justify-center">
                   <ArrowRight className="mr-1 rotate-180 h-4 w-4" />
-                  Regular login
-                </Link>
-                <Link to="/superadmin/login" className="text-indigo-600 hover:underline flex items-center">
-                  <Shield className="mr-1 h-4 w-4" />
-                  SuperAdmin
+                  Admin login
                 </Link>
               </p>
             </div>

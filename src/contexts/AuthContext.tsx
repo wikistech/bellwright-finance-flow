@@ -12,7 +12,11 @@ interface AuthContextProps {
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   signOut: () => Promise<void>;
   registerAdmin: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  registerSuperAdmin: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   checkIsAdmin: () => Promise<boolean>;
+  checkIsSuperAdmin: () => Promise<boolean>;
+  approveAdmin: (adminId: string) => Promise<void>;
+  rejectAdmin: (adminId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -168,8 +172,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
   
-  // New functions for admin authentication
-  
+  // Admin registration function
   const registerAdmin = async (email: string, password: string, firstName: string, lastName: string) => {
     try {
       // Clean up existing state first
@@ -206,8 +209,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { error: adminError } = await supabase
           .from('admin_users')
           .insert([{ 
+            id: data.user.id,
             email: email.toLowerCase(),
-            id: data.user.id 
+            first_name: firstName,
+            last_name: lastName,
+            status: 'pending'
           }]);
         
         if (adminError) {
@@ -216,7 +222,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         toast({
           title: "Admin Registration Successful",
-          description: "Your admin account has been created. You may now log in.",
+          description: "Your admin account has been created. You must be approved by a superadmin before you can log in.",
         });
       }
     } catch (error: any) {
@@ -229,12 +235,94 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
   
+  // New SuperAdmin registration function
+  const registerSuperAdmin = async (email: string, password: string, firstName: string, lastName: string) => {
+    try {
+      // Clean up existing state first
+      cleanupAuthState();
+      
+      // Check if superadmin email already exists
+      const { data: existingSuperAdmin, error: checkError } = await supabase
+        .from('superadmin_users')
+        .select('email')
+        .eq('email', email.toLowerCase())
+        .single();
+        
+      if (existingSuperAdmin) {
+        throw new Error('A superadmin with this email already exists.');
+      }
+      
+      // Sign up the user first
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            firstName,
+            lastName,
+            role: 'superadmin'
+          }
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data.user) {
+        // Add the user to the superadmin_users table
+        const { error: superadminError } = await supabase
+          .from('superadmin_users')
+          .insert([{ 
+            id: data.user.id,
+            email: email.toLowerCase(),
+            first_name: firstName,
+            last_name: lastName
+          }]);
+        
+        if (superadminError) {
+          throw superadminError;
+        }
+        
+        toast({
+          title: "Superadmin Registration Successful",
+          description: "Your superadmin account has been created. You may now log in.",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: error.message || "There was an error creating your superadmin account.",
+      });
+      throw error;
+    }
+  };
+  
+  // Check admin status function
   const checkIsAdmin = async (): Promise<boolean> => {
     if (!user) return false;
     
     try {
       const { data, error } = await supabase
         .from('admin_users')
+        .select('status')
+        .eq('email', user.email)
+        .single();
+      
+      if (error) throw error;
+      return data && data.status === 'approved';
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      return false;
+    }
+  };
+  
+  // New check superadmin status function
+  const checkIsSuperAdmin = async (): Promise<boolean> => {
+    if (!user) return false;
+    
+    try {
+      const { data, error } = await supabase
+        .from('superadmin_users')
         .select('*')
         .eq('email', user.email)
         .single();
@@ -242,8 +330,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
       return !!data;
     } catch (error) {
-      console.error('Error checking admin status:', error);
+      console.error('Error checking superadmin status:', error);
       return false;
+    }
+  };
+  
+  // New approve admin function
+  const approveAdmin = async (adminId: string): Promise<void> => {
+    try {
+      const isSuperAdmin = await checkIsSuperAdmin();
+      
+      if (!isSuperAdmin) {
+        throw new Error('Only superadmins can approve admin accounts.');
+      }
+      
+      const { error } = await supabase
+        .from('admin_users')
+        .update({ 
+          status: 'approved',
+          approved_by: user?.id,
+          approved_at: new Date().toISOString(),
+          rejected_at: null
+        })
+        .eq('id', adminId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Admin Approved",
+        description: "The admin account has been approved successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Approval Failed",
+        description: error.message || "There was an error approving the admin account.",
+      });
+      throw error;
+    }
+  };
+  
+  // New reject admin function
+  const rejectAdmin = async (adminId: string): Promise<void> => {
+    try {
+      const isSuperAdmin = await checkIsSuperAdmin();
+      
+      if (!isSuperAdmin) {
+        throw new Error('Only superadmins can reject admin accounts.');
+      }
+      
+      const { error } = await supabase
+        .from('admin_users')
+        .update({ 
+          status: 'rejected',
+          approved_by: user?.id,
+          rejected_at: new Date().toISOString(),
+          approved_at: null
+        })
+        .eq('id', adminId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Admin Rejected",
+        description: "The admin account has been rejected.",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Rejection Failed",
+        description: error.message || "There was an error rejecting the admin account.",
+      });
+      throw error;
     }
   };
   
@@ -255,7 +413,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signUp,
     signOut,
     registerAdmin,
-    checkIsAdmin
+    registerSuperAdmin,
+    checkIsAdmin,
+    checkIsSuperAdmin,
+    approveAdmin,
+    rejectAdmin
   };
   
   return (
