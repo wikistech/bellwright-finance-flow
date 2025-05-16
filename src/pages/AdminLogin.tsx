@@ -1,8 +1,7 @@
-
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Lock, Mail } from 'lucide-react';
+import { ArrowRight, Lock, Mail, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -14,7 +13,8 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function AdminLogin() {
@@ -24,6 +24,7 @@ export default function AdminLogin() {
   const [errorMessage, setErrorMessage] = useState('');
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { signIn } = useAuth();
 
   // Clear error message when inputs change
   const handleInputChange = (setter: React.Dispatch<React.SetStateAction<string>>, value: string) => {
@@ -37,46 +38,20 @@ export default function AdminLogin() {
     setErrorMessage('');
 
     try {
-      // Hardcoded admin credentials - DO NOT display these in the UI
-      const adminEmail = 'wikistech07@gmail.com';
-      const adminPassword = 'Adminlogin01';
+      // Sign in with Supabase
+      await signIn(email, password);
       
-      // First check if the email is correct
-      if (email.toLowerCase() !== adminEmail.toLowerCase()) {
-        throw new Error('Only authorized admin accounts can log in here.');
-      }
-      
-      // Then check if the password is correct
-      if (password !== adminPassword) {
-        throw new Error('Invalid password. Please try again.');
-      }
-
-      // If both are correct, sign in with Supabase
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: adminEmail,
-        password: adminPassword
-      });
-
-      if (error) throw error;
-
-      // Check if user is in admin_users table
-      const { data: adminData, error: adminError } = await supabase
+      // Check if user is an admin
+      const { data, error } = await supabase
         .from('admin_users')
         .select('*')
-        .eq('email', adminEmail)
+        .eq('email', email.toLowerCase())
         .single();
 
-      if (adminError || !adminData) {
-        // If admin check fails, add this user as admin since we know it's the correct email
-        const { error: insertError } = await supabase
-          .from('admin_users')
-          .insert([{ email: adminEmail }]);
-
-        if (insertError) {
-          // If insert fails, sign out and show error
-          await supabase.auth.signOut();
-          throw new Error('Failed to set up admin privileges. Please contact support.');
-        }
+      if (error || !data) {
+        // Force sign out if not admin
+        await supabase.auth.signOut();
+        throw new Error('Only authorized admin accounts can log in here.');
       }
 
       toast({
@@ -119,7 +94,10 @@ export default function AdminLogin() {
         
         <Card className="border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-2xl text-center">Admin Login</CardTitle>
+            <CardTitle className="text-2xl text-center flex items-center justify-center gap-2">
+              <Shield className="h-6 w-6" />
+              Admin Login
+            </CardTitle>
             <CardDescription className="text-center">
               Enter your admin credentials to access the dashboard
             </CardDescription>
@@ -179,13 +157,21 @@ export default function AdminLogin() {
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="flex justify-center">
+          <CardFooter className="flex justify-center flex-col space-y-4">
             <p className="text-sm text-gray-600">
-              Not an admin?{" "}
-              <Link to="/login" className="text-finance-primary hover:underline">
-                Regular login
+              Need an admin account?{" "}
+              <Link to="/admin/register" className="text-finance-primary hover:underline">
+                Register as admin
               </Link>
             </p>
+            <div className="w-full border-t pt-4">
+              <p className="text-sm text-gray-600 text-center">
+                <Link to="/login" className="text-finance-primary hover:underline flex items-center justify-center">
+                  <ArrowRight className="mr-1 rotate-180 h-4 w-4" />
+                  Regular user login
+                </Link>
+              </p>
+            </div>
           </CardFooter>
         </Card>
       </motion.div>

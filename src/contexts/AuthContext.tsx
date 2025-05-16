@@ -1,9 +1,8 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextProps {
   user: User | null;
@@ -12,6 +11,8 @@ interface AuthContextProps {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   signOut: () => Promise<void>;
+  registerAdmin: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  checkIsAdmin: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -167,13 +168,94 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
   
+  // New functions for admin authentication
+  
+  const registerAdmin = async (email: string, password: string, firstName: string, lastName: string) => {
+    try {
+      // Clean up existing state first
+      cleanupAuthState();
+      
+      // Check if admin email already exists
+      const { data: existingAdmin, error: checkError } = await supabase
+        .from('admin_users')
+        .select('email')
+        .eq('email', email.toLowerCase())
+        .single();
+        
+      if (existingAdmin) {
+        throw new Error('An admin with this email already exists.');
+      }
+      
+      // Sign up the user first
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            firstName,
+            lastName,
+            role: 'admin'
+          }
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data.user) {
+        // Add the user to the admin_users table
+        const { error: adminError } = await supabase
+          .from('admin_users')
+          .insert([{ 
+            email: email.toLowerCase(),
+            id: data.user.id 
+          }]);
+        
+        if (adminError) {
+          throw adminError;
+        }
+        
+        toast({
+          title: "Admin Registration Successful",
+          description: "Your admin account has been created. You may now log in.",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: error.message || "There was an error creating your admin account.",
+      });
+      throw error;
+    }
+  };
+  
+  const checkIsAdmin = async (): Promise<boolean> => {
+    if (!user) return false;
+    
+    try {
+      const { data, error } = await supabase
+        .from('admin_users')
+        .select('*')
+        .eq('email', user.email)
+        .single();
+      
+      if (error) throw error;
+      return !!data;
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      return false;
+    }
+  };
+  
   const value = {
     user,
     session,
     isLoading,
     signIn,
     signUp,
-    signOut
+    signOut,
+    registerAdmin,
+    checkIsAdmin
   };
   
   return (

@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { RegistrationProvider } from "./contexts/RegistrationContext";
 import PrivateRoute from "./components/auth/PrivateRoute";
+import AdminRoute from "./components/auth/AdminRoute";
 import AdminPortalLink from "./components/layout/AdminPortalLink";
 
 import Index from "./pages/Index";
@@ -21,9 +22,11 @@ import Referrals from "./pages/Referrals";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import AdminLogin from "./pages/AdminLogin";
+import AdminRegister from "./pages/AdminRegister";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminUsers from "./pages/AdminUsers";
 import AdminLoans from "./pages/AdminLoans";
+import { supabase } from "./integrations/supabase/client";
 
 const queryClient = new QueryClient();
 
@@ -41,7 +44,10 @@ const App = () => (
               <Route path="/register" element={<><Register /><AdminPortalLink /></>} />
               <Route path="/verify-email" element={<EmailVerification />} />
               <Route path="/payment-setup" element={<PaymentSetup />} />
-              <Route path="/admin" element={<AdminLogin />} />
+              
+              {/* Admin Auth Routes (public) */}
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/admin/register" element={<AdminRegister />} />
               
               {/* Protected Routes */}
               <Route element={<PrivateRoute />}>
@@ -50,8 +56,10 @@ const App = () => (
                 <Route path="/loans" element={<Loans />} />
                 <Route path="/referrals" element={<Referrals />} />
                 <Route path="/settings" element={<Settings />} />
-                
-                {/* Admin Routes */}
+              </Route>
+              
+              {/* Admin Protected Routes */}
+              <Route element={<AdminRoute />}>
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/loans" element={<AdminLoans />} />
