@@ -16,9 +16,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRegistration } from '@/contexts/RegistrationContext';
-import { generateVerificationCode, sendVerificationEmail } from '@/utils/verification';
-import { supabase } from '@/integrations/supabase/client';
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -30,7 +27,6 @@ export default function Register() {
   const { toast } = useToast();
   const { signUp, user } = useAuth();
   const navigate = useNavigate();
-  const { updateRegistrationData, resetRegistrationData } = useRegistration();
   
   // Redirect if already logged in
   if (user) {
@@ -52,56 +48,16 @@ export default function Register() {
     setIsLoading(true);
     
     try {
-      // Generate verification code (5 digits, 0-9)
-      const verificationCode = generateVerificationCode();
-      console.log("Generated verification code:", verificationCode); // Debug log
-      
-      // Update registration context with user details and verification code
-      resetRegistrationData();
-      updateRegistrationData({
-        email,
-        firstName,
-        lastName,
-        password,
-        verificationCode
-      });
-
-      // Sign up the user first
+      // Sign up the user directly without email confirmation
       await signUp(email, password, firstName, lastName);
       
-      // Store verification code in database for later verification
-      const { data: userData } = await supabase.auth.getUser();
-      
-      if (userData.user) {
-        const { error } = await supabase
-          .from('verification_codes')
-          .insert([
-            { 
-              user_id: userData.user.id, 
-              code: verificationCode,
-              expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-            }
-          ]);
-        
-        if (error) {
-          console.error("Error storing verification code:", error);
-        }
-      }
-
-      // Send verification email with the code
-      const emailSent = await sendVerificationEmail(email, verificationCode);
-      
-      if (!emailSent) {
-        throw new Error("Failed to send verification email. Please try again.");
-      }
-      
       toast({
-        title: "Verification Code Sent",
-        description: `A verification code has been sent to ${email}. Please check your email to complete registration.`,
+        title: "Registration Successful",
+        description: "Your account has been created successfully. You can now access your dashboard.",
       });
       
-      // Navigate to verification page
-      navigate('/verify-email');
+      // Navigate directly to dashboard
+      navigate('/dashboard');
     } catch (error: any) {
       toast({
         variant: "destructive",

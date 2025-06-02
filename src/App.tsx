@@ -15,7 +15,6 @@ import Index from "./pages/Index";
 import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import EmailVerification from "./pages/EmailVerification";
 import PaymentSetup from "./pages/PaymentSetup";
 import Payments from "./pages/Payments";
 import Loans from "./pages/Loans";
@@ -25,7 +24,6 @@ import NotFound from "./pages/NotFound";
 import AdminLogin from "./pages/AdminLogin";
 import AdminRegister from "./pages/AdminRegister";
 import SuperAdminLogin from "./pages/SuperAdminLogin";
-import SuperAdminRegister from "./pages/SuperAdminRegister";
 import AdminDashboard from "./pages/AdminDashboard";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import AdminUsers from "./pages/AdminUsers";
@@ -46,16 +44,14 @@ const App = () => (
               <Route path="/" element={<><LandingPage /><AdminPortalLink /></>} />
               <Route path="/login" element={<><Login /><AdminPortalLink /></>} />
               <Route path="/register" element={<><Register /><AdminPortalLink /></>} />
-              <Route path="/verify-email" element={<EmailVerification />} />
               <Route path="/payment-setup" element={<PaymentSetup />} />
               
               {/* Admin Auth Routes (public) */}
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/admin/register" element={<AdminRegister />} />
               
-              {/* SuperAdmin Auth Routes (public) */}
+              {/* SuperAdmin Auth Routes (public) - removed register route */}
               <Route path="/superadmin/login" element={<SuperAdminLogin />} />
-              <Route path="/superadmin/register" element={<SuperAdminRegister />} />
               
               {/* Protected Routes */}
               <Route element={<PrivateRoute />}>

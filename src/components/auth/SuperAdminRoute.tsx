@@ -3,7 +3,6 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -13,6 +12,9 @@ export const SuperAdminRoute: React.FC = () => {
   const [isCheckingSuperAdmin, setIsCheckingSuperAdmin] = useState(true);
   const { toast } = useToast();
   
+  // Fixed superadmin email
+  const SUPERADMIN_EMAIL = 'wikistech07@gmail.com';
+  
   useEffect(() => {
     const checkSuperAdminStatus = async () => {
       if (!user) {
@@ -21,16 +23,9 @@ export const SuperAdminRoute: React.FC = () => {
       }
       
       try {
-        const { data, error } = await supabase
-          .from('superadmin_users')
-          .select('*')
-          .eq('email', user.email)
-          .single();
-        
-        if (error) throw error;
-        
-        // User is in the superadmin table
-        setIsSuperAdmin(!!data);
+        // Check if the logged in user email matches the superadmin email
+        const isValidSuperAdmin = user.email === SUPERADMIN_EMAIL;
+        setIsSuperAdmin(isValidSuperAdmin);
       } catch (error) {
         console.error('Error checking superadmin status:', error);
         setIsSuperAdmin(false);
@@ -60,7 +55,7 @@ export const SuperAdminRoute: React.FC = () => {
   }
   
   if (!isSuperAdmin) {
-    // User is logged in but not a superadmin
+    // User is logged in but not the superadmin
     toast({
       variant: "destructive",
       title: "Access Denied",
@@ -69,7 +64,7 @@ export const SuperAdminRoute: React.FC = () => {
     return <Navigate to="/" replace />;
   }
   
-  // User is logged in and is a superadmin
+  // User is logged in and is the superadmin
   return <Outlet />;
 };
 

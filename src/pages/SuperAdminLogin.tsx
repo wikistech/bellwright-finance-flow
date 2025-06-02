@@ -16,7 +16,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 
 export default function SuperAdminLogin() {
   const [email, setEmail] = useState('');
@@ -26,6 +25,10 @@ export default function SuperAdminLogin() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { signIn } = useAuth();
+
+  // Fixed superadmin credentials
+  const SUPERADMIN_EMAIL = 'wikistech07@gmail.com';
+  const SUPERADMIN_PASSWORD = 'Superadmin01';
 
   // Clear error message when inputs change
   const handleInputChange = (setter: React.Dispatch<React.SetStateAction<string>>, value: string) => {
@@ -39,21 +42,13 @@ export default function SuperAdminLogin() {
     setErrorMessage('');
 
     try {
-      // Sign in with Supabase
-      await signIn(email, password);
-      
-      // Check if user is a superadmin
-      const { data, error } = await supabase
-        .from('superadmin_users')
-        .select('*')
-        .eq('email', email.toLowerCase())
-        .single();
-
-      if (error || !data) {
-        // Force sign out if not superadmin
-        await supabase.auth.signOut();
-        throw new Error('Only authorized superadmin accounts can log in here.');
+      // Check if credentials match the fixed superadmin credentials
+      if (email !== SUPERADMIN_EMAIL || password !== SUPERADMIN_PASSWORD) {
+        throw new Error('Invalid superadmin credentials. Access denied.');
       }
+
+      // Sign in with Supabase using the fixed credentials
+      await signIn(email, password);
 
       toast({
         title: 'SuperAdmin Login Successful',
@@ -62,11 +57,11 @@ export default function SuperAdminLogin() {
 
       navigate('/superadmin/dashboard');
     } catch (error: any) {
-      setErrorMessage(error.message || 'An error occurred during login.');
+      setErrorMessage(error.message || 'Invalid credentials. Access denied.');
       toast({
         variant: 'destructive',
         title: 'Login Failed',
-        description: error.message || 'An error occurred during login.',
+        description: error.message || 'Invalid credentials. Access denied.',
       });
     } finally {
       setIsLoading(false);
@@ -97,10 +92,10 @@ export default function SuperAdminLogin() {
           <CardHeader>
             <CardTitle className="text-2xl text-center flex items-center justify-center gap-2">
               <Shield className="h-6 w-6" />
-              SuperAdmin Login
+              SuperAdmin Access
             </CardTitle>
             <CardDescription className="text-center">
-              Enter your superadmin credentials to access the dashboard
+              Enter superadmin credentials to access the dashboard
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -154,17 +149,11 @@ export default function SuperAdminLogin() {
                 className="w-full bg-indigo-600 hover:bg-indigo-700" 
                 disabled={isLoading}
               >
-                {isLoading ? "Logging in..." : "Login"}
+                {isLoading ? "Accessing..." : "Access Dashboard"}
               </Button>
             </form>
           </CardContent>
           <CardFooter className="flex justify-center flex-col space-y-4">
-            <p className="text-sm text-gray-600">
-              Need a superadmin account?{" "}
-              <Link to="/superadmin/register" className="text-indigo-600 hover:underline">
-                Register as superadmin
-              </Link>
-            </p>
             <div className="w-full border-t pt-4">
               <p className="text-sm text-gray-600 text-center">
                 <Link to="/admin/login" className="text-finance-primary hover:underline flex items-center justify-center">
