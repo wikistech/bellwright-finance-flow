@@ -30,7 +30,7 @@ export default function Register() {
   
   // Redirect if already logged in
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/payment-setup" replace />;
   }
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,11 +53,11 @@ export default function Register() {
       
       toast({
         title: "Registration Successful",
-        description: "Your account has been created successfully. You can now access your dashboard.",
+        description: "Your account has been created successfully. Please complete your payment setup.",
       });
       
-      // Navigate directly to dashboard
-      navigate('/dashboard');
+      // Navigate to payment setup instead of dashboard
+      navigate('/payment-setup');
     } catch (error: any) {
       toast({
         variant: "destructive",

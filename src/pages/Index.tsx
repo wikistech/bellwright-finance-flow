@@ -5,17 +5,9 @@ import DashboardCards from '@/components/dashboard/DashboardCards';
 import RecentTransactions from '@/components/dashboard/RecentTransactions';
 import LoanStatus from '@/components/dashboard/LoanStatus';
 import UserDashboard from '@/components/dashboard/UserDashboard';
-import { useAuth } from '@/contexts/AuthContext';
-import { Separator } from '@/components/ui/separator';
-import AdminDashboard from '@/components/dashboard/AdminDashboard';
 
 const Index = () => {
   const isMobile = useIsMobile();
-  const { user } = useAuth();
-  
-  // Admin check could be more sophisticated in a real app
-  // This is just a placeholder to demonstrate the concept
-  const isAdmin = user?.email?.includes('admin');
   
   return (
     <Layout>
@@ -39,14 +31,6 @@ const Index = () => {
             <LoanStatus />
           </div>
         </div>
-        
-        {isAdmin && (
-          <>
-            <Separator className="my-6" />
-            <h2 className="text-2xl font-bold mb-4">Admin Dashboard</h2>
-            <AdminDashboard />
-          </>
-        )}
       </div>
     </Layout>
   );

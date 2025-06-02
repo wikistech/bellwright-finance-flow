@@ -8,7 +8,6 @@ import {
   Home, 
   Calendar, 
   CreditCard, 
-  Users, 
   Settings,
   ArrowLeft,
   ArrowRight,
@@ -35,11 +34,6 @@ const navItems = [
     title: "Loans",
     href: "/loans",
     icon: Calendar,
-  },
-  {
-    title: "Referrals",
-    href: "/referrals",
-    icon: Users,
   },
   {
     title: "Settings",

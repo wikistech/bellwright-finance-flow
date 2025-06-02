@@ -1,47 +1,34 @@
 
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 export const SuperAdminRoute: React.FC = () => {
-  const { user, isLoading } = useAuth();
-  const [isSuperAdmin, setIsSuperAdmin] = useState<boolean | null>(null);
-  const [isCheckingSuperAdmin, setIsCheckingSuperAdmin] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const { toast } = useToast();
   
-  // Fixed superadmin email
+  // Fixed superadmin email for validation
   const SUPERADMIN_EMAIL = 'wikistech07@gmail.com';
   
   useEffect(() => {
-    const checkSuperAdminStatus = async () => {
-      if (!user) {
-        setIsCheckingSuperAdmin(false);
-        return;
-      }
+    // Check if user has valid superadmin session
+    const checkSuperAdminAuth = () => {
+      const superAdminSession = sessionStorage.getItem('superadmin_authenticated');
+      const superAdminEmail = sessionStorage.getItem('superadmin_email');
       
-      try {
-        // Check if the logged in user email matches the superadmin email
-        const isValidSuperAdmin = user.email === SUPERADMIN_EMAIL;
-        setIsSuperAdmin(isValidSuperAdmin);
-      } catch (error) {
-        console.error('Error checking superadmin status:', error);
-        setIsSuperAdmin(false);
-      } finally {
-        setIsCheckingSuperAdmin(false);
+      if (superAdminSession === 'true' && superAdminEmail === SUPERADMIN_EMAIL) {
+        setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(false);
       }
     };
     
-    if (user) {
-      checkSuperAdminStatus();
-    } else {
-      setIsCheckingSuperAdmin(false);
-    }
-  }, [user]);
+    checkSuperAdminAuth();
+  }, []);
   
-  if (isLoading || isCheckingSuperAdmin) {
+  if (isAuthenticated === null) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-finance-primary" />
@@ -49,22 +36,17 @@ export const SuperAdminRoute: React.FC = () => {
     );
   }
   
-  if (!user) {
-    // Redirect to superadmin login if not logged in
-    return <Navigate to="/superadmin/login" replace />;
-  }
-  
-  if (!isSuperAdmin) {
-    // User is logged in but not the superadmin
+  if (!isAuthenticated) {
+    // User is not authenticated as superadmin
     toast({
       variant: "destructive",
       title: "Access Denied",
       description: "You don't have superadmin permissions to access this area.",
     });
-    return <Navigate to="/" replace />;
+    return <Navigate to="/superadmin/login" replace />;
   }
   
-  // User is logged in and is the superadmin
+  // User is authenticated as superadmin
   return <Outlet />;
 };
 

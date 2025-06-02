@@ -15,7 +15,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
 
 export default function SuperAdminLogin() {
   const [email, setEmail] = useState('');
@@ -24,7 +23,6 @@ export default function SuperAdminLogin() {
   const [errorMessage, setErrorMessage] = useState('');
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { signIn } = useAuth();
 
   // Fixed superadmin credentials
   const SUPERADMIN_EMAIL = 'wikistech07@gmail.com';
@@ -47,14 +45,16 @@ export default function SuperAdminLogin() {
         throw new Error('Invalid superadmin credentials. Access denied.');
       }
 
-      // Sign in with Supabase using the fixed credentials
-      await signIn(email, password);
+      // Set superadmin session
+      sessionStorage.setItem('superadmin_authenticated', 'true');
+      sessionStorage.setItem('superadmin_email', email);
 
       toast({
         title: 'SuperAdmin Login Successful',
         description: 'Welcome to the superadmin dashboard.',
       });
 
+      // Direct navigation to superadmin dashboard
       navigate('/superadmin/dashboard');
     } catch (error: any) {
       setErrorMessage(error.message || 'Invalid credentials. Access denied.');
