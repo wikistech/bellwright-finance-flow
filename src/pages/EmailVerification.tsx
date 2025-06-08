@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -13,7 +12,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
-import { generateVerificationCode, sendVerificationEmail } from '@/utils/verification';
 import { useRegistration } from '@/contexts/RegistrationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
@@ -158,8 +156,8 @@ export default function EmailVerification() {
   
   const handleResendCode = async () => {
     try {
-      // Generate new code
-      const newCode = generateVerificationCode();
+      // Generate new code - simple 5 digit code
+      const newCode = Math.floor(10000 + Math.random() * 90000).toString();
       
       // Update in database
       const { data: userData } = await supabase.auth.getUser();
@@ -181,16 +179,9 @@ export default function EmailVerification() {
       // Update in context
       updateRegistrationData({ verificationCode: newCode });
       
-      // Send email
-      const emailSent = await sendVerificationEmail(registrationData.email, newCode);
-      
-      if (!emailSent) {
-        throw new Error("Failed to send verification email");
-      }
-      
       toast({
         title: "Code Resent",
-        description: "A new verification code has been sent to your email.",
+        description: "A new verification code has been generated.",
       });
       
       // Reset timer
@@ -200,7 +191,7 @@ export default function EmailVerification() {
       toast({
         variant: "destructive",
         title: "Failed to Resend Code",
-        description: error.message || "There was an error sending the verification code. Please try again.",
+        description: error.message || "There was an error generating a new verification code. Please try again.",
       });
     }
   };
