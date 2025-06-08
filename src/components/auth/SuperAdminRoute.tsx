@@ -18,6 +18,8 @@ export const SuperAdminRoute: React.FC = () => {
       const superAdminSession = sessionStorage.getItem('superadmin_authenticated');
       const superAdminEmail = sessionStorage.getItem('superadmin_email');
       
+      console.log('Checking superadmin auth:', { superAdminSession, superAdminEmail });
+      
       if (superAdminSession === 'true' && superAdminEmail === SUPERADMIN_EMAIL) {
         setIsAuthenticated(true);
       } else {
@@ -38,11 +40,6 @@ export const SuperAdminRoute: React.FC = () => {
   
   if (!isAuthenticated) {
     // User is not authenticated as superadmin
-    toast({
-      variant: "destructive",
-      title: "Access Denied",
-      description: "You don't have superadmin permissions to access this area.",
-    });
     return <Navigate to="/superadmin/login" replace />;
   }
   

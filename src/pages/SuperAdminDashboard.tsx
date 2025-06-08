@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Users, FileText, LogOut, CreditCard, Home, 
@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface AdminUser {
   id: string;
@@ -30,44 +29,20 @@ export default function SuperAdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { approveAdmin, rejectAdmin } = useAuth();
 
   useEffect(() => {
-    const checkSuperAdmin = async () => {
-      try {
-        const { data: userData } = await supabase.auth.getUser();
-        
-        if (!userData.user) {
-          navigate('/superadmin/login');
-          return;
-        }
-        
-        const { data: superadminData, error } = await supabase
-          .from('superadmin_users')
-          .select('*')
-          .eq('id', userData.user.id)
-          .single();
-        
-        if (error || !superadminData) {
-          toast({
-            variant: 'destructive',
-            title: 'Access Denied',
-            description: 'You do not have superadmin privileges.',
-          });
-          navigate('/');
-          return;
-        }
-        
-        // Load dashboard data
-        loadDashboardData();
-      } catch (error) {
-        console.error('Superadmin check error:', error);
-        navigate('/superadmin/login');
-      }
-    };
+    // Check if user is authenticated as superadmin
+    const superAdminSession = sessionStorage.getItem('superadmin_authenticated');
+    const superAdminEmail = sessionStorage.getItem('superadmin_email');
     
-    checkSuperAdmin();
-  }, [navigate, toast]);
+    if (superAdminSession !== 'true' || superAdminEmail !== 'wikistech07@gmail.com') {
+      navigate('/superadmin/login');
+      return;
+    }
+    
+    // Load dashboard data
+    loadDashboardData();
+  }, [navigate]);
   
   const loadDashboardData = async () => {
     setIsLoading(true);
@@ -99,41 +74,74 @@ export default function SuperAdminDashboard() {
     }
   };
   
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      toast({
-        title: 'Signed Out',
-        description: 'You have been signed out successfully.',
-      });
-      navigate('/superadmin/login');
-    } catch (error) {
-      console.error('Sign out error:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Sign Out Failed',
-        description: 'Failed to sign out. Please try again.',
-      });
-    }
+  const handleSignOut = () => {
+    // Clear superadmin session
+    sessionStorage.removeItem('superadmin_authenticated');
+    sessionStorage.removeItem('superadmin_email');
+    
+    toast({
+      title: 'Signed Out',
+      description: 'You have been signed out successfully.',
+    });
+    navigate('/superadmin/login');
   };
   
   const handleApproveAdmin = async (adminId: string) => {
     try {
-      await approveAdmin(adminId);
+      const { error } = await supabase
+        .from('admin_users')
+        .update({ 
+          status: 'approved',
+          approved_at: new Date().toISOString(),
+          approved_by: 'superadmin'
+        })
+        .eq('id', adminId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: 'Admin Approved',
+        description: 'Admin account has been approved successfully.',
+      });
+      
       // Refresh data
       loadDashboardData();
     } catch (error) {
       console.error('Error approving admin:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to approve admin account.',
+      });
     }
   };
   
   const handleRejectAdmin = async (adminId: string) => {
     try {
-      await rejectAdmin(adminId);
+      const { error } = await supabase
+        .from('admin_users')
+        .update({ 
+          status: 'rejected',
+          rejected_at: new Date().toISOString()
+        })
+        .eq('id', adminId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: 'Admin Rejected',
+        description: 'Admin account has been rejected.',
+      });
+      
       // Refresh data
       loadDashboardData();
     } catch (error) {
       console.error('Error rejecting admin:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to reject admin account.',
+      });
     }
   };
   
