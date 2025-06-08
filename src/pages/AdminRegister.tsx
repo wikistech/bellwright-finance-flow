@@ -78,7 +78,8 @@ export default function AdminRegister() {
         options: {
           data: {
             first_name: values.firstName,
-            last_name: values.lastName
+            last_name: values.lastName,
+            role: 'admin'
           }
         }
       });
@@ -90,6 +91,9 @@ export default function AdminRegister() {
       if (!authData.user) {
         throw new Error("Failed to create user account");
       }
+
+      // Sign out immediately after registration since they need approval first
+      await supabase.auth.signOut();
       
       // Insert admin record with pending status
       const { error: adminError } = await supabase
@@ -103,17 +107,15 @@ export default function AdminRegister() {
         });
       
       if (adminError) {
-        // If admin record creation fails, we should clean up the auth user
-        await supabase.auth.signOut();
         throw new Error("Failed to create admin record: " + adminError.message);
       }
       
       toast({
         title: "Registration Successful",
-        description: "Your admin account has been created and is pending approval by a superadmin.",
+        description: "Your admin account has been created and is pending approval by a superadmin. You will be able to login once approved.",
       });
       
-      // Redirect to admin login
+      // Redirect to admin login page
       navigate('/admin/login');
     } catch (error: any) {
       console.error('Registration error:', error);
@@ -248,13 +250,16 @@ export default function AdminRegister() {
             </Form>
           </CardContent>
           
-          <CardFooter className="flex justify-center">
+          <CardFooter className="flex justify-center flex-col space-y-4">
             <p className="text-sm text-gray-600">
               Already have an admin account?{" "}
               <Link to="/admin/login" className="text-finance-primary hover:underline">
                 Admin Login
               </Link>
             </p>
+            <div className="text-xs text-gray-500 text-center border-t pt-4 mt-2">
+              <p>Note: Admin accounts require approval by a superadmin before access is granted.</p>
+            </div>
           </CardFooter>
         </Card>
       </div>

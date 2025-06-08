@@ -37,7 +37,31 @@ export default function AdminLogin() {
     setErrorMessage('');
 
     try {
-      // Sign in with Supabase
+      // First check if the admin exists and their status
+      const { data: adminData, error: adminCheckError } = await supabase
+        .from('admin_users')
+        .select('id, status, first_name, last_name')
+        .eq('email', email.toLowerCase())
+        .single();
+
+      if (adminCheckError || !adminData) {
+        throw new Error('Invalid admin credentials. Please check your email and try again.');
+      }
+
+      // Check admin status before attempting login
+      if (adminData.status === 'pending') {
+        throw new Error('Your admin account is pending approval by a superadmin. Please wait for approval before logging in.');
+      }
+
+      if (adminData.status === 'rejected') {
+        throw new Error('Your admin account has been rejected. Please contact support for assistance.');
+      }
+
+      if (adminData.status !== 'approved') {
+        throw new Error('Your admin account status is invalid. Please contact support.');
+      }
+
+      // If admin is approved, proceed with authentication
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: email,
         password: password
@@ -50,42 +74,17 @@ export default function AdminLogin() {
       if (!authData.user) {
         throw new Error('Login failed - no user data received');
       }
-      
-      // Check if user is an admin and get their status
-      const { data, error } = await supabase
-        .from('admin_users')
-        .select('status')
-        .eq('id', authData.user.id)
-        .single();
 
-      if (error || !data) {
-        // Force sign out if not admin
+      // Verify the logged-in user matches the admin record
+      if (authData.user.id !== adminData.id) {
         await supabase.auth.signOut();
-        throw new Error('Only authorized admin accounts can log in here.');
+        throw new Error('Authentication error. Please try again.');
       }
 
-      if (data.status === 'pending') {
-        // Force sign out if admin is pending
-        await supabase.auth.signOut();
-        throw new Error('Your admin account is pending approval by a superadmin. Please wait for approval before logging in.');
-      }
-
-      if (data.status === 'rejected') {
-        // Force sign out if admin is rejected
-        await supabase.auth.signOut();
-        throw new Error('Your admin account has been rejected or deactivated. Please contact support.');
-      }
-
-      if (data.status !== 'approved') {
-        // Force sign out if status is unknown
-        await supabase.auth.signOut();
-        throw new Error('Your admin account status is invalid. Please contact support.');
-      }
-
-      // Admin is approved - proceed to dashboard
+      // Success - redirect to admin dashboard
       toast({
         title: 'Admin Login Successful',
-        description: 'Welcome to the admin dashboard.',
+        description: `Welcome ${adminData.first_name} ${adminData.last_name}! Redirecting to admin dashboard...`,
       });
 
       navigate('/admin/dashboard');

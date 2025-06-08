@@ -24,7 +24,6 @@ import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRegistration } from '@/contexts/RegistrationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -60,12 +59,11 @@ export default function PaymentSetup() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { registrationData, updateRegistrationData } = useRegistration();
   const { user } = useAuth();
   
-  // If user is not verified, redirect to verification page
-  if (!registrationData.isVerified && !user) {
-    return <Navigate to="/verify-email" replace />;
+  // If user is not logged in, redirect to login page
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
   
   const form = useForm<PaymentSetupValues>({
@@ -107,19 +105,12 @@ export default function PaymentSetup() {
     setIsSubmitting(true);
     
     try {
-      // Get current user
-      const { data: userData } = await supabase.auth.getUser();
-      
-      if (!userData.user) {
-        throw new Error("User must be logged in to save payment information");
-      }
-      
       // Save payment information to database
       const { error } = await supabase
         .from('payment_methods')
         .insert([
           {
-            user_id: userData.user.id,
+            user_id: user.id,
             cardholder_name: data.cardholderName,
             card_number: data.cardNumber.replace(/\s/g, ''),
             expiry_date: data.expiryDate,
@@ -130,9 +121,6 @@ export default function PaymentSetup() {
         ]);
       
       if (error) throw error;
-      
-      // Update registration context
-      updateRegistrationData({ paymentInfoSubmitted: true });
       
       toast({
         title: "Payment Method Added",
