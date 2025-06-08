@@ -7,10 +7,21 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Users, FileText, LogOut, CreditCard, Home, 
-  UserCheck, UserX, Shield, AlertTriangle
+  UserCheck, UserX, Shield, AlertTriangle, Trash2
 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface AdminUser {
   id: string;
@@ -144,6 +155,41 @@ export default function SuperAdminDashboard() {
       });
     }
   };
+
+  const handleDeleteAdmin = async (adminId: string, adminEmail: string) => {
+    try {
+      // First delete from admin_users table
+      const { error: adminError } = await supabase
+        .from('admin_users')
+        .delete()
+        .eq('id', adminId);
+      
+      if (adminError) throw adminError;
+
+      // Then delete the user from Supabase auth
+      const { error: authError } = await supabase.auth.admin.deleteUser(adminId);
+      
+      // Note: We don't throw on authError as the admin record might not exist in auth
+      if (authError) {
+        console.warn('Could not delete from auth:', authError);
+      }
+      
+      toast({
+        title: 'Admin Deleted',
+        description: `Admin account for ${adminEmail} has been permanently deleted.`,
+      });
+      
+      // Refresh data
+      loadDashboardData();
+    } catch (error) {
+      console.error('Error deleting admin:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to delete admin account.',
+      });
+    }
+  };
   
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -228,7 +274,7 @@ export default function SuperAdminDashboard() {
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="p-6">
             <h3 className="text-lg font-medium">Admin Account Management</h3>
-            <p className="text-sm text-gray-500 mb-4">Approve or reject admin account requests</p>
+            <p className="text-sm text-gray-500 mb-4">Approve, reject or delete admin account requests</p>
             
             {isLoading ? (
               <div className="py-8 text-center">
@@ -320,6 +366,38 @@ export default function SuperAdminDashboard() {
                               Grant Access
                             </Button>
                           )}
+                          
+                          {/* Delete button for all statuses */}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="border-red-500 text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Delete
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will permanently delete the admin account for {admin.email}. 
+                                  This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => handleDeleteAdmin(admin.id, admin.email)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Delete Permanently
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>

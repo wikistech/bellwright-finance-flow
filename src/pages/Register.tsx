@@ -1,9 +1,8 @@
 
 import { useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Lock, Mail, User } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -15,48 +14,52 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Register() {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { signUp, user } = useAuth();
   const navigate = useNavigate();
-  
-  // Redirect if already logged in
-  if (user) {
-    return <Navigate to="/payment-setup" replace />;
-  }
-  
+  const { signUp } = useAuth();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (password !== confirmPassword) {
       toast({
         variant: "destructive",
-        title: "Passwords do not match",
-        description: "Please ensure both passwords match.",
+        title: "Password Mismatch",
+        description: "Passwords do not match.",
       });
       return;
     }
-    
+
+    if (password.length < 8) {
+      toast({
+        variant: "destructive",
+        title: "Password Too Short",
+        description: "Password must be at least 8 characters long.",
+      });
+      return;
+    }
+
     setIsLoading(true);
-    
+
     try {
-      // Sign up the user directly without email confirmation
       await signUp(email, password, firstName, lastName);
       
       toast({
         title: "Registration Successful",
-        description: "Your account has been created successfully. Please complete your payment setup.",
+        description: "Your account has been created. Please set up your payment information.",
       });
       
-      // Navigate to payment setup instead of dashboard
+      // Redirect directly to payment setup
       navigate('/payment-setup');
     } catch (error: any) {
       toast({
@@ -68,7 +71,7 @@ export default function Register() {
       setIsLoading(false);
     }
   };
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col justify-center items-center p-4">
       <Link to="/" className="absolute top-4 left-4 text-gray-600 hover:text-finance-primary transition-colors">
@@ -86,14 +89,14 @@ export default function Register() {
       >
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-finance-primary">Bellwright Finance</h1>
-          <p className="text-gray-600 mt-2">Create your financial account</p>
+          <p className="text-gray-600 mt-2">Create your account</p>
         </div>
         
         <Card className="border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-2xl text-center">Register</CardTitle>
+            <CardTitle className="text-2xl text-center">Sign Up</CardTitle>
             <CardDescription className="text-center">
-              Enter your details to create an account
+              Enter your information to create an account
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -101,26 +104,31 @@ export default function Register() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First Name</Label>
-                  <Input
-                    id="firstName"
-                    type="text"
-                    placeholder="John"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                  />
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="firstName"
+                      placeholder="John"
+                      className="pl-10"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
-                
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    type="text"
-                    placeholder="Smith"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                  />
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="lastName"
+                      placeholder="Doe"
+                      className="pl-10"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
               </div>
               
@@ -131,7 +139,7 @@ export default function Register() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="name@example.com"
+                    placeholder="john@example.com"
                     className="pl-10"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -172,11 +180,7 @@ export default function Register() {
                 </div>
               </div>
               
-              <Button 
-                type="submit" 
-                className="w-full bg-finance-primary hover:bg-finance-secondary" 
-                disabled={isLoading}
-              >
+              <Button type="submit" className="w-full bg-finance-primary hover:bg-finance-secondary" disabled={isLoading}>
                 {isLoading ? "Creating account..." : "Create Account"}
               </Button>
             </form>
