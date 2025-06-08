@@ -7,9 +7,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { User } from '@supabase/supabase-js';
 import { ChevronLeft, Search, UserCheck, UserX } from 'lucide-react';
 
 interface UserWithVerification {
@@ -18,10 +17,12 @@ interface UserWithVerification {
   created_at: string;
   last_sign_in_at: string | null;
   is_verified: boolean;
+  full_name: string;
 }
 
 export default function AdminUsers() {
   const [users, setUsers] = useState<UserWithVerification[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<UserWithVerification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
@@ -34,7 +35,7 @@ export default function AdminUsers() {
         const { data: userData } = await supabase.auth.getUser();
         
         if (!userData.user) {
-          navigate('/admin');
+          navigate('/admin/login');
           return;
         }
         
@@ -42,6 +43,7 @@ export default function AdminUsers() {
           .from('admin_users')
           .select('*')
           .eq('id', userData.user.id)
+          .eq('status', 'approved')
           .single();
         
         if (error || !adminData) {
@@ -50,7 +52,7 @@ export default function AdminUsers() {
             title: 'Access Denied',
             description: 'You do not have admin privileges.',
           });
-          navigate('/');
+          navigate('/admin/login');
           return;
         }
         
@@ -58,12 +60,27 @@ export default function AdminUsers() {
         loadUsers();
       } catch (error) {
         console.error('Admin check error:', error);
-        navigate('/admin');
+        navigate('/admin/login');
       }
     };
     
     checkAdmin();
   }, [navigate, toast]);
+
+  useEffect(() => {
+    // Filter users based on search query
+    if (searchQuery.trim() === '') {
+      setFilteredUsers(users);
+    } else {
+      const filtered = users.filter(user => {
+        const fullName = user.full_name.toLowerCase();
+        const email = user.email.toLowerCase();
+        const query = searchQuery.toLowerCase();
+        return fullName.includes(query) || email.includes(query);
+      });
+      setFilteredUsers(filtered);
+    }
+  }, [searchQuery, users]);
   
   const loadUsers = async () => {
     setIsLoading(true);
@@ -84,7 +101,6 @@ export default function AdminUsers() {
       });
       
       // Get all auth users (need to use auth admin API in production)
-      // For this demo, we'll mock getting users from auth
       const { data: userData, error: userError } = await supabase
         .from('verification_codes')
         .select('user_id, created_at')
@@ -99,14 +115,15 @@ export default function AdminUsers() {
         const created = userData?.find(u => u.user_id === id)?.created_at || new Date().toISOString();
         return {
           id,
-          email: `user_${id.substring(0, 8)}@example.com`, // Mock email
+          email: `user_${id.substring(0, 8)}@example.com`,
           created_at: created,
           last_sign_in_at: null,
-          is_verified: verificationMap.get(id) || false
+          is_verified: verificationMap.get(id) || false,
+          full_name: `User ${id.substring(0, 8)}`
         };
       });
       
-      // Fill in real emails where available
+      // Fill in real emails and names where available
       const { data: paymentData, error: paymentError } = await supabase
         .from('payment_methods')
         .select('user_id, cardholder_name');
@@ -115,27 +132,29 @@ export default function AdminUsers() {
         paymentData.forEach(payment => {
           const user = userProfiles.find(u => u.id === payment.user_id);
           if (user) {
-            // Use cardholder name as a proxy for email
             user.email = `${payment.cardholder_name.toLowerCase().replace(' ', '.')}@example.com`;
+            user.full_name = payment.cardholder_name;
           }
         });
       }
       
-      // Get loan application emails
+      // Get loan application emails and names
       const { data: loanData, error: loanError } = await supabase
         .from('loan_applications')
-        .select('user_id, email');
+        .select('user_id, email, full_name');
       
       if (!loanError && loanData) {
         loanData.forEach(loan => {
           const user = userProfiles.find(u => u.id === loan.user_id);
           if (user) {
             user.email = loan.email;
+            user.full_name = loan.full_name;
           }
         });
       }
       
       setUsers(userProfiles);
+      setFilteredUsers(userProfiles);
     } catch (error) {
       console.error('Error loading users:', error);
       toast({
@@ -147,10 +166,6 @@ export default function AdminUsers() {
       setIsLoading(false);
     }
   };
-  
-  const filteredUsers = users.filter(user => 
-    user.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
   
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Never';
@@ -186,7 +201,7 @@ export default function AdminUsers() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               type="text"
-              placeholder="Search users..."
+              placeholder="Search by name or email..."
               className="pl-10"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -198,6 +213,7 @@ export default function AdminUsers() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Joined</TableHead>
                 <TableHead>Last Login</TableHead>
@@ -208,20 +224,21 @@ export default function AdminUsers() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-10">
+                  <TableCell colSpan={6} className="text-center py-10">
                     Loading users...
                   </TableCell>
                 </TableRow>
               ) : filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-10">
-                    No users found
+                  <TableCell colSpan={6} className="text-center py-10">
+                    {searchQuery ? 'No users found matching your search' : 'No users found'}
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredUsers.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.email}</TableCell>
+                    <TableCell className="font-medium">{user.full_name}</TableCell>
+                    <TableCell>{user.email}</TableCell>
                     <TableCell>{formatDate(user.created_at)}</TableCell>
                     <TableCell>{formatDate(user.last_sign_in_at)}</TableCell>
                     <TableCell>

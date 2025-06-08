@@ -14,11 +14,11 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { supabase } from '@/integrations/supabase/client';
 
 // Validation schema
 const registerSchema = z.object({
@@ -38,7 +38,6 @@ export default function AdminRegister() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { registerAdmin } = useAuth();
   
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -55,17 +54,74 @@ export default function AdminRegister() {
     setIsLoading(true);
     
     try {
-      await registerAdmin(
-        values.email,
-        values.password,
-        values.firstName,
-        values.lastName
-      );
+      // Check if admin already exists
+      const { data: existingAdmin, error: checkError } = await supabase
+        .from('admin_users')
+        .select('email')
+        .eq('email', values.email.toLowerCase())
+        .single();
       
-      // Success - redirect to admin login
+      if (existingAdmin) {
+        toast({
+          variant: "destructive",
+          title: "Registration Failed",
+          description: "An admin account with this email already exists.",
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Sign up the user with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          data: {
+            first_name: values.firstName,
+            last_name: values.lastName
+          }
+        }
+      });
+      
+      if (authError) {
+        throw new Error(authError.message);
+      }
+      
+      if (!authData.user) {
+        throw new Error("Failed to create user account");
+      }
+      
+      // Insert admin record with pending status
+      const { error: adminError } = await supabase
+        .from('admin_users')
+        .insert({
+          id: authData.user.id,
+          email: values.email.toLowerCase(),
+          first_name: values.firstName,
+          last_name: values.lastName,
+          status: 'pending'
+        });
+      
+      if (adminError) {
+        // If admin record creation fails, we should clean up the auth user
+        await supabase.auth.signOut();
+        throw new Error("Failed to create admin record: " + adminError.message);
+      }
+      
+      toast({
+        title: "Registration Successful",
+        description: "Your admin account has been created and is pending approval by a superadmin.",
+      });
+      
+      // Redirect to admin login
       navigate('/admin/login');
-    } catch (error) {
-      // Error is handled in the auth context
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: error.message || "An error occurred during registration.",
+      });
     } finally {
       setIsLoading(false);
     }

@@ -3,11 +3,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Users, FileText, LogOut, CreditCard, Home, 
-  UserCheck, UserX, Shield, AlertTriangle, Trash2
+  UserCheck, UserX, Shield, AlertTriangle, Trash2, Search
 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +35,8 @@ interface AdminUser {
 
 export default function SuperAdminDashboard() {
   const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [filteredAdmins, setFilteredAdmins] = useState<AdminUser[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [userCount, setUserCount] = useState(0);
   const [adminCount, setAdminCount] = useState(0);
   const [pendingAdmins, setPendingAdmins] = useState(0);
@@ -54,6 +57,21 @@ export default function SuperAdminDashboard() {
     // Load dashboard data
     loadDashboardData();
   }, [navigate]);
+
+  useEffect(() => {
+    // Filter admins based on search query
+    if (searchQuery.trim() === '') {
+      setFilteredAdmins(admins);
+    } else {
+      const filtered = admins.filter(admin => {
+        const fullName = `${admin.first_name || ''} ${admin.last_name || ''}`.toLowerCase();
+        const email = admin.email.toLowerCase();
+        const query = searchQuery.toLowerCase();
+        return fullName.includes(query) || email.includes(query);
+      });
+      setFilteredAdmins(filtered);
+    }
+  }, [searchQuery, admins]);
   
   const loadDashboardData = async () => {
     setIsLoading(true);
@@ -75,6 +93,7 @@ export default function SuperAdminDashboard() {
       
       if (!adminError && adminData) {
         setAdmins(adminData);
+        setFilteredAdmins(adminData);
         setAdminCount(adminData.length);
         setPendingAdmins(adminData.filter(admin => admin.status === 'pending').length);
       }
@@ -273,16 +292,30 @@ export default function SuperAdminDashboard() {
         
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="p-6">
-            <h3 className="text-lg font-medium">Admin Account Management</h3>
-            <p className="text-sm text-gray-500 mb-4">Approve, reject or delete admin account requests</p>
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="text-lg font-medium">Admin Account Management</h3>
+                <p className="text-sm text-gray-500">Approve, reject or delete admin account requests</p>
+              </div>
+              <div className="relative w-72">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  className="pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
             
             {isLoading ? (
               <div className="py-8 text-center">
                 Loading admin accounts...
               </div>
-            ) : admins.length === 0 ? (
+            ) : filteredAdmins.length === 0 ? (
               <div className="py-8 text-center text-gray-500">
-                No admin accounts found
+                {searchQuery ? 'No admin accounts found matching your search' : 'No admin accounts found'}
               </div>
             ) : (
               <Table>
@@ -296,7 +329,7 @@ export default function SuperAdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {admins.map((admin) => (
+                  {filteredAdmins.map((admin) => (
                     <TableRow key={admin.id}>
                       <TableCell>
                         {admin.first_name || ''} {admin.last_name || ''}

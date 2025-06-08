@@ -15,7 +15,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function AdminLogin() {
@@ -25,7 +24,6 @@ export default function AdminLogin() {
   const [errorMessage, setErrorMessage] = useState('');
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { signIn } = useAuth();
 
   // Clear error message when inputs change
   const handleInputChange = (setter: React.Dispatch<React.SetStateAction<string>>, value: string) => {
@@ -40,13 +38,24 @@ export default function AdminLogin() {
 
     try {
       // Sign in with Supabase
-      await signIn(email, password);
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
       
-      // Check if user is an admin
+      if (authError) {
+        throw new Error(authError.message);
+      }
+
+      if (!authData.user) {
+        throw new Error('Login failed - no user data received');
+      }
+      
+      // Check if user is an admin and get their status
       const { data, error } = await supabase
         .from('admin_users')
         .select('status')
-        .eq('email', email.toLowerCase())
+        .eq('id', authData.user.id)
         .single();
 
       if (error || !data) {
@@ -58,15 +67,22 @@ export default function AdminLogin() {
       if (data.status === 'pending') {
         // Force sign out if admin is pending
         await supabase.auth.signOut();
-        throw new Error('Your admin account is pending approval by a superadmin.');
+        throw new Error('Your admin account is pending approval by a superadmin. Please wait for approval before logging in.');
       }
 
       if (data.status === 'rejected') {
         // Force sign out if admin is rejected
         await supabase.auth.signOut();
-        throw new Error('Your admin account has been rejected or deactivated.');
+        throw new Error('Your admin account has been rejected or deactivated. Please contact support.');
       }
 
+      if (data.status !== 'approved') {
+        // Force sign out if status is unknown
+        await supabase.auth.signOut();
+        throw new Error('Your admin account status is invalid. Please contact support.');
+      }
+
+      // Admin is approved - proceed to dashboard
       toast({
         title: 'Admin Login Successful',
         description: 'Welcome to the admin dashboard.',
@@ -74,6 +90,7 @@ export default function AdminLogin() {
 
       navigate('/admin/dashboard');
     } catch (error: any) {
+      console.error('Login error:', error);
       setErrorMessage(error.message || 'An error occurred during login.');
       toast({
         variant: 'destructive',
