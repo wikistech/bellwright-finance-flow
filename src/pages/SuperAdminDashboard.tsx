@@ -3,75 +3,50 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  Users, FileText, LogOut, CreditCard, Home, 
-  UserCheck, UserX, Shield, AlertTriangle, Trash2, Search
+  Users, 
+  FileText, 
+  LogOut, 
+  CreditCard, 
+  Home, 
+  Shield,
+  CheckCircle,
+  XCircle,
+  Clock
 } from 'lucide-react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 
-interface AdminUser {
+interface PendingAdmin {
   id: string;
   email: string;
-  first_name: string | null;
-  last_name: string | null;
+  first_name: string;
+  last_name: string;
   status: string;
   created_at: string;
 }
 
 export default function SuperAdminDashboard() {
-  const [admins, setAdmins] = useState<AdminUser[]>([]);
-  const [filteredAdmins, setFilteredAdmins] = useState<AdminUser[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [userCount, setUserCount] = useState(0);
-  const [adminCount, setAdminCount] = useState(0);
-  const [pendingAdmins, setPendingAdmins] = useState(0);
+  const [loanCount, setLoanCount] = useState(0);
+  const [pendingLoans, setPendingLoans] = useState(0);
+  const [pendingAdmins, setPendingAdmins] = useState<PendingAdmin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is authenticated as superadmin
-    const superAdminSession = sessionStorage.getItem('superadmin_authenticated');
-    const superAdminEmail = sessionStorage.getItem('superadmin_email');
+    // Check if user is superadmin via session storage (since this uses hardcoded credentials)
+    const isSuperAdmin = sessionStorage.getItem('superadmin_authenticated') === 'true';
     
-    if (superAdminSession !== 'true' || superAdminEmail !== 'wikistech07@gmail.com') {
+    if (!isSuperAdmin) {
       navigate('/superadmin/login');
       return;
     }
     
-    // Load dashboard data
     loadDashboardData();
   }, [navigate]);
-
-  useEffect(() => {
-    // Filter admins based on search query
-    if (searchQuery.trim() === '') {
-      setFilteredAdmins(admins);
-    } else {
-      const filtered = admins.filter(admin => {
-        const fullName = `${admin.first_name || ''} ${admin.last_name || ''}`.toLowerCase();
-        const email = admin.email.toLowerCase();
-        const query = searchQuery.toLowerCase();
-        return fullName.includes(query) || email.includes(query);
-      });
-      setFilteredAdmins(filtered);
-    }
-  }, [searchQuery, admins]);
   
   const loadDashboardData = async () => {
     setIsLoading(true);
@@ -85,17 +60,25 @@ export default function SuperAdminDashboard() {
         setUserCount(userCountData || 0);
       }
       
-      // Get admin data
+      // Get loan counts
+      const { data: loanData, error: loanError } = await supabase
+        .from('loan_applications')
+        .select('status');
+      
+      if (!loanError && loanData) {
+        setLoanCount(loanData.length);
+        setPendingLoans(loanData.filter(loan => loan.status === 'pending').length);
+      }
+
+      // Get pending admin registrations
       const { data: adminData, error: adminError } = await supabase
         .from('admin_users')
-        .select('*')
+        .select('id, email, first_name, last_name, status, created_at')
+        .eq('status', 'pending')
         .order('created_at', { ascending: false });
-      
+
       if (!adminError && adminData) {
-        setAdmins(adminData);
-        setFilteredAdmins(adminData);
-        setAdminCount(adminData.length);
-        setPendingAdmins(adminData.filter(admin => admin.status === 'pending').length);
+        setPendingAdmins(adminData);
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -103,49 +86,36 @@ export default function SuperAdminDashboard() {
       setIsLoading(false);
     }
   };
-  
-  const handleSignOut = () => {
-    // Clear superadmin session
-    sessionStorage.removeItem('superadmin_authenticated');
-    sessionStorage.removeItem('superadmin_email');
-    
-    toast({
-      title: 'Signed Out',
-      description: 'You have been signed out successfully.',
-    });
-    navigate('/superadmin/login');
-  };
-  
+
   const handleApproveAdmin = async (adminId: string) => {
     try {
       const { error } = await supabase
         .from('admin_users')
         .update({ 
           status: 'approved',
-          approved_at: new Date().toISOString(),
-          approved_by: 'superadmin'
+          approved_at: new Date().toISOString()
         })
         .eq('id', adminId);
-      
+
       if (error) throw error;
-      
+
       toast({
         title: 'Admin Approved',
-        description: 'Admin account has been approved successfully.',
+        description: 'The admin account has been approved successfully.',
       });
-      
-      // Refresh data
+
+      // Reload the pending admins list
       loadDashboardData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error approving admin:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to approve admin account.',
+        description: 'Failed to approve admin. Please try again.',
       });
     }
   };
-  
+
   const handleRejectAdmin = async (adminId: string) => {
     try {
       const { error } = await supabase
@@ -155,61 +125,46 @@ export default function SuperAdminDashboard() {
           rejected_at: new Date().toISOString()
         })
         .eq('id', adminId);
-      
+
       if (error) throw error;
-      
+
       toast({
         title: 'Admin Rejected',
-        description: 'Admin account has been rejected.',
+        description: 'The admin account has been rejected.',
       });
-      
-      // Refresh data
+
+      // Reload the pending admins list
       loadDashboardData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error rejecting admin:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to reject admin account.',
-      });
-    }
-  };
-
-  const handleDeleteAdmin = async (adminId: string, adminEmail: string) => {
-    try {
-      // First delete from admin_users table
-      const { error: adminError } = await supabase
-        .from('admin_users')
-        .delete()
-        .eq('id', adminId);
-      
-      if (adminError) throw adminError;
-
-      // Then delete the user from Supabase auth
-      const { error: authError } = await supabase.auth.admin.deleteUser(adminId);
-      
-      // Note: We don't throw on authError as the admin record might not exist in auth
-      if (authError) {
-        console.warn('Could not delete from auth:', authError);
-      }
-      
-      toast({
-        title: 'Admin Deleted',
-        description: `Admin account for ${adminEmail} has been permanently deleted.`,
-      });
-      
-      // Refresh data
-      loadDashboardData();
-    } catch (error) {
-      console.error('Error deleting admin:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to delete admin account.',
+        description: 'Failed to reject admin. Please try again.',
       });
     }
   };
   
+  const handleSignOut = async () => {
+    try {
+      sessionStorage.removeItem('superadmin_authenticated');
+      sessionStorage.removeItem('superadmin_email');
+      
+      toast({
+        title: 'Signed Out',
+        description: 'You have been signed out successfully.',
+      });
+      navigate('/superadmin/login');
+    } catch (error) {
+      console.error('Sign out error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Sign Out Failed',
+        description: 'Failed to sign out. Please try again.',
+      });
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -222,18 +177,18 @@ export default function SuperAdminDashboard() {
   
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-indigo-700 shadow-sm text-white">
+      <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center">
-            <Shield className="h-6 w-6 mr-2" />
-            <h1 className="text-2xl font-bold">SuperAdmin Dashboard</h1>
+            <Shield className="h-8 w-8 text-indigo-600 mr-3" />
+            <h1 className="text-2xl font-bold text-indigo-600">SuperAdmin Dashboard</h1>
           </div>
           <div className="flex items-center space-x-4">
             <Button 
               variant="ghost" 
               size="sm"
               onClick={handleSignOut}
-              className="text-white hover:text-gray-200 hover:bg-indigo-600"
+              className="text-gray-600 hover:text-gray-900"
             >
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
@@ -269,174 +224,81 @@ export default function SuperAdminDashboard() {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Admin Accounts</CardTitle>
-              <UserCheck className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Total Loans</CardTitle>
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{isLoading ? '...' : adminCount}</div>
-              <p className="text-xs text-muted-foreground mt-1">Total admin accounts</p>
+              <div className="text-2xl font-bold">{isLoading ? '...' : loanCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">All loan applications</p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-amber-500">{isLoading ? '...' : pendingAdmins}</div>
-              <p className="text-xs text-muted-foreground mt-1">Admin accounts awaiting approval</p>
+              <div className="text-2xl font-bold">{isLoading ? '...' : pendingLoans}</div>
+              <p className="text-xs text-muted-foreground mt-1">Loans awaiting approval</p>
             </CardContent>
           </Card>
         </div>
-        
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+
+        {/* Pending Admin Registrations Section */}
+        <div className="bg-white rounded-lg shadow mb-6">
           <div className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h3 className="text-lg font-medium">Admin Account Management</h3>
-                <p className="text-sm text-gray-500">Approve, reject or delete admin account requests</p>
-              </div>
-              <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Search by name or email..."
-                  className="pl-10"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </div>
+            <h3 className="text-lg font-medium mb-4 flex items-center">
+              <Clock className="h-5 w-5 mr-2 text-amber-500" />
+              Pending Admin Registrations ({pendingAdmins.length})
+            </h3>
             
             {isLoading ? (
-              <div className="py-8 text-center">
-                Loading admin accounts...
-              </div>
-            ) : filteredAdmins.length === 0 ? (
-              <div className="py-8 text-center text-gray-500">
-                {searchQuery ? 'No admin accounts found matching your search' : 'No admin accounts found'}
+              <div className="text-center py-4">Loading pending admins...</div>
+            ) : pendingAdmins.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No pending admin registrations
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Registered</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAdmins.map((admin) => (
-                    <TableRow key={admin.id}>
-                      <TableCell>
-                        {admin.first_name || ''} {admin.last_name || ''}
-                      </TableCell>
-                      <TableCell>{admin.email}</TableCell>
-                      <TableCell>{formatDate(admin.created_at)}</TableCell>
-                      <TableCell>
-                        {admin.status === 'pending' && (
-                          <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
-                            Pending
-                          </Badge>
-                        )}
-                        {admin.status === 'approved' && (
-                          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                            Approved
-                          </Badge>
-                        )}
-                        {admin.status === 'rejected' && (
-                          <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
-                            Rejected
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          {admin.status === 'pending' && (
-                            <>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="border-green-500 text-green-600 hover:bg-green-50"
-                                onClick={() => handleApproveAdmin(admin.id)}
-                              >
-                                <UserCheck className="h-4 w-4 mr-1" />
-                                Approve
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className="border-red-500 text-red-600 hover:bg-red-50"
-                                onClick={() => handleRejectAdmin(admin.id)}
-                              >
-                                <UserX className="h-4 w-4 mr-1" />
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                          {admin.status === 'approved' && (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="border-red-500 text-red-600 hover:bg-red-50"
-                              onClick={() => handleRejectAdmin(admin.id)}
-                            >
-                              <UserX className="h-4 w-4 mr-1" />
-                              Revoke Access
-                            </Button>
-                          )}
-                          {admin.status === 'rejected' && (
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="border-green-500 text-green-600 hover:bg-green-50"
-                              onClick={() => handleApproveAdmin(admin.id)}
-                            >
-                              <UserCheck className="h-4 w-4 mr-1" />
-                              Grant Access
-                            </Button>
-                          )}
-                          
-                          {/* Delete button for all statuses */}
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className="border-red-500 text-red-600 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-4 w-4 mr-1" />
-                                Delete
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will permanently delete the admin account for {admin.email}. 
-                                  This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => handleDeleteAdmin(admin.id, admin.email)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  Delete Permanently
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+              <div className="space-y-4">
+                {pendingAdmins.map((admin) => (
+                  <div key={admin.id} className="border rounded-lg p-4 flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3">
+                        <div>
+                          <h4 className="font-medium">{admin.first_name} {admin.last_name}</h4>
+                          <p className="text-sm text-gray-600">{admin.email}</p>
+                          <p className="text-xs text-gray-500">
+                            Registered: {formatDate(admin.created_at)}
+                          </p>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                        <Badge variant="outline" className="text-amber-600 bg-amber-50">
+                          <Clock className="h-3 w-3 mr-1" />
+                          Pending
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleApproveAdmin(admin.id)}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleRejectAdmin(admin.id)}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" />
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
