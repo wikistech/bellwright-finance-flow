@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,6 +16,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Alert,
+  AlertDescription,
+} from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { 
   Select,
@@ -33,6 +36,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { LoanApplicationData, submitLoanApplication } from '@/utils/loans';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { AlertCircle } from 'lucide-react';
 
 const loanFormSchema = z.object({
   loanType: z.string({
@@ -64,6 +68,7 @@ type LoanFormValues = z.infer<typeof loanFormSchema>;
 export function LoanForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [termValue, setTermValue] = useState(12);
+  const [showDepositAlert, setShowDepositAlert] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -114,16 +119,18 @@ export function LoanForm() {
       
       await submitLoanApplication(loanData);
       
+      // Show deposit requirement alert
+      setShowDepositAlert(true);
+      
       toast({
         title: "Loan Application Submitted",
-        description: "Your loan application has been received and is pending approval. We'll contact you soon.",
+        description: "Your loan application has been received. Please make the required deposit to proceed.",
       });
       
-      form.reset();
-      setTermValue(12);
-      
-      // Redirect to dashboard
-      setTimeout(() => navigate('/dashboard'), 1500);
+      // Redirect to payment page after a brief delay
+      setTimeout(() => {
+        navigate('/payments');
+      }, 3000);
     } catch (error) {
       console.error("Error submitting loan application:", error);
       toast({
@@ -141,15 +148,58 @@ export function LoanForm() {
     form.setValue("term", value[0]);
   };
 
+  if (showDepositAlert) {
+    return (
+      <Card className="w-full max-w-2xl mx-auto">
+        <CardHeader>
+          <CardTitle className="text-2xl flex items-center gap-2">
+            <AlertCircle className="h-6 w-6 text-amber-500" />
+            Deposit Required
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="text-lg">
+              <strong>Important:</strong> Before your loan can be processed, you must first make a deposit of $15 or more. 
+              This deposit serves as a security requirement for loan processing.
+            </AlertDescription>
+          </Alert>
+          
+          <div className="mt-6 space-y-4">
+            <p className="text-gray-600">
+              You will now be redirected to the payment page where you can make your deposit. 
+              After completing the payment, please wait for admin approval of your loan application.
+            </p>
+            
+            <Button 
+              onClick={() => navigate('/payments')} 
+              className="w-full bg-finance-primary hover:bg-finance-secondary"
+            >
+              Proceed to Payment
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle className="text-2xl">Apply for a Loan</CardTitle>
         <CardDescription>
-          Complete the form below to apply for a loan. We'll review your application and contact you soon.
+          Complete the form below to apply for a loan. After submission, you'll need to make a deposit of $15 or more before processing.
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <Alert className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Note:</strong> A minimum deposit of $15 is required after loan application submission for processing to begin.
+          </AlertDescription>
+        </Alert>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="space-y-4">

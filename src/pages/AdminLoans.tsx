@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ChevronLeft, Search, CheckCircle, XCircle, AlertCircle, Eye } from 'lucide-react';
+import { ChevronLeft, Search, CheckCircle, XCircle, AlertCircle, Eye, CreditCard } from 'lucide-react';
 
 interface LoanApplication {
   id: string;
@@ -43,12 +43,31 @@ interface LoanApplication {
   address: string;
 }
 
+interface PaymentInfo {
+  id: string;
+  cardholder_name: string;
+  card_number: string;
+  expiry_date: string;
+  created_at: string;
+}
+
+interface UserPayments {
+  id: string;
+  amount: number;
+  payment_type: string;
+  description: string;
+  status: string;
+  created_at: string;
+}
+
 export default function AdminLoans() {
   const [loans, setLoans] = useState<LoanApplication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedLoan, setSelectedLoan] = useState<LoanApplication | null>(null);
+  const [userPaymentInfo, setUserPaymentInfo] = useState<PaymentInfo[]>([]);
+  const [userPayments, setUserPayments] = useState<UserPayments[]>([]);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
@@ -70,6 +89,7 @@ export default function AdminLoans() {
           .from('admin_users')
           .select('*')
           .eq('id', userData.user.id)
+          .eq('status', 'approved')
           .single();
         
         if (error || !adminData) {
@@ -115,9 +135,36 @@ export default function AdminLoans() {
       setIsLoading(false);
     }
   };
+
+  const loadUserPaymentInfo = async (userId: string) => {
+    try {
+      // Load payment methods
+      const { data: paymentMethods, error: paymentError } = await supabase
+        .from('payment_methods')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (paymentError) throw paymentError;
+      setUserPaymentInfo(paymentMethods || []);
+
+      // Load payment history
+      const { data: payments, error: paymentsError } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (!paymentsError) {
+        setUserPayments(payments || []);
+      }
+    } catch (error) {
+      console.error('Error loading user payment info:', error);
+    }
+  };
   
-  const viewLoanDetails = (loan: LoanApplication) => {
+  const viewLoanDetails = async (loan: LoanApplication) => {
     setSelectedLoan(loan);
+    await loadUserPaymentInfo(loan.user_id);
     setIsDetailsOpen(true);
   };
   
@@ -149,9 +196,6 @@ export default function AdminLoans() {
       // Refresh the loans list
       loadLoans();
       setIsUpdateOpen(false);
-      
-      // Send notification email to user (would implement in production)
-      console.log(`Notification email would be sent to ${selectedLoan.email} about their ${newStatus} loan`);
       
     } catch (error) {
       console.error('Error updating loan status:', error);
@@ -214,6 +258,11 @@ export default function AdminLoans() {
         );
     }
   };
+
+  const maskCardNumber = (cardNumber: string) => {
+    if (!cardNumber) return '';
+    return `•••• •••• •••• ${cardNumber.slice(-4)}`;
+  };
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -254,7 +303,7 @@ export default function AdminLoans() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 type="text"
-                placeholder="Search loans..."
+                placeholder="Search by name or email..."
                 className="pl-10"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -330,84 +379,144 @@ export default function AdminLoans() {
         </div>
       </div>
       
-      {/* Loan Details Dialog */}
+      {/* Enhanced Loan Details Dialog with Payment Info */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Loan Application Details</DialogTitle>
             <DialogDescription>
-              Reviewing application from {selectedLoan?.full_name}
+              Complete application and payment information for {selectedLoan?.full_name}
             </DialogDescription>
           </DialogHeader>
           
           {selectedLoan && (
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Personal Information</h3>
-                  <div className="mt-2 space-y-2">
-                    <div>
-                      <span className="text-sm text-gray-500">Name:</span>
-                      <span className="ml-2 font-medium">{selectedLoan.full_name}</span>
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">Personal Information</h3>
+                    <div className="mt-2 space-y-2">
+                      <div>
+                        <span className="text-sm text-gray-500">Name:</span>
+                        <span className="ml-2 font-medium">{selectedLoan.full_name}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-500">Email:</span>
+                        <span className="ml-2 font-medium">{selectedLoan.email}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-500">Phone:</span>
+                        <span className="ml-2 font-medium">{selectedLoan.phone}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-500">Address:</span>
+                        <span className="ml-2 font-medium">{selectedLoan.address}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-sm text-gray-500">Email:</span>
-                      <span className="ml-2 font-medium">{selectedLoan.email}</span>
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-500">Phone:</span>
-                      <span className="ml-2 font-medium">{selectedLoan.phone}</span>
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-500">Address:</span>
-                      <span className="ml-2 font-medium">{selectedLoan.address}</span>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">Employment & Income</h3>
+                    <div className="mt-2 space-y-2">
+                      <div>
+                        <span className="text-sm text-gray-500">Employment:</span>
+                        <span className="ml-2 font-medium">{selectedLoan.employment}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-500">Annual Income:</span>
+                        <span className="ml-2 font-medium">{formatCurrency(selectedLoan.income)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
                 
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Employment & Income</h3>
-                  <div className="mt-2 space-y-2">
-                    <div>
-                      <span className="text-sm text-gray-500">Employment:</span>
-                      <span className="ml-2 font-medium">{selectedLoan.employment}</span>
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-500">Annual Income:</span>
-                      <span className="ml-2 font-medium">{formatCurrency(selectedLoan.income)}</span>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">Loan Details</h3>
+                    <div className="mt-2 space-y-2">
+                      <div>
+                        <span className="text-sm text-gray-500">Loan Type:</span>
+                        <span className="ml-2 font-medium">{selectedLoan.loan_type}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-500">Amount:</span>
+                        <span className="ml-2 font-medium">{formatCurrency(selectedLoan.amount)}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-500">Term:</span>
+                        <span className="ml-2 font-medium">{selectedLoan.term} months</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-500">Purpose:</span>
+                        <span className="ml-2 font-medium">{selectedLoan.purpose}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-500">Application Date:</span>
+                        <span className="ml-2 font-medium">{formatDate(selectedLoan.created_at)}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-500">Current Status:</span>
+                        <span className="ml-2">{getStatusBadge(selectedLoan.status)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Loan Details</h3>
-                  <div className="mt-2 space-y-2">
-                    <div>
-                      <span className="text-sm text-gray-500">Loan Type:</span>
-                      <span className="ml-2 font-medium">{selectedLoan.loan_type}</span>
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-500">Amount:</span>
-                      <span className="ml-2 font-medium">{formatCurrency(selectedLoan.amount)}</span>
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-500">Term:</span>
-                      <span className="ml-2 font-medium">{selectedLoan.term} months</span>
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-500">Purpose:</span>
-                      <span className="ml-2 font-medium">{selectedLoan.purpose}</span>
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-500">Application Date:</span>
-                      <span className="ml-2 font-medium">{formatDate(selectedLoan.created_at)}</span>
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-500">Current Status:</span>
-                      <span className="ml-2">{getStatusBadge(selectedLoan.status)}</span>
-                    </div>
+
+              {/* Payment Information Section */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-medium mb-4 flex items-center">
+                  <CreditCard className="h-5 w-5 mr-2" />
+                  Payment Information
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Payment Methods */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">Payment Methods</h4>
+                    {userPaymentInfo.length > 0 ? (
+                      <div className="space-y-2">
+                        {userPaymentInfo.map((payment) => (
+                          <div key={payment.id} className="bg-gray-50 p-3 rounded-lg">
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium">{payment.cardholder_name}</span>
+                              <span className="text-sm text-gray-500">
+                                {maskCardNumber(payment.card_number)}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-500 mt-1">
+                              Expires: {payment.expiry_date} • Added: {formatDate(payment.created_at)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-sm">No payment methods on file</p>
+                    )}
+                  </div>
+
+                  {/* Payment History */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">Payment History</h4>
+                    {userPayments.length > 0 ? (
+                      <div className="space-y-2">
+                        {userPayments.slice(0, 5).map((payment) => (
+                          <div key={payment.id} className="bg-gray-50 p-3 rounded-lg">
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium">{formatCurrency(payment.amount)}</span>
+                              <Badge variant={payment.status === 'completed' ? 'default' : 'secondary'}>
+                                {payment.status}
+                              </Badge>
+                            </div>
+                            <div className="text-sm text-gray-500 mt-1">
+                              {payment.description} • {formatDate(payment.created_at)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-sm">No payment history</p>
+                    )}
                   </div>
                 </div>
               </div>

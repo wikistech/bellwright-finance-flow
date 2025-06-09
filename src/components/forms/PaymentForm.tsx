@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,6 +16,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Alert,
+  AlertDescription,
+} from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -30,12 +33,13 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useToast } from '@/components/ui/use-toast';
 import { submitPayment } from '@/utils/payments';
+import { CheckCircle, AlertCircle } from 'lucide-react';
 
 const paymentFormSchema = z.object({
   amount: z
     .string()
     .refine((val) => !isNaN(Number(val)), { message: 'Must be a valid number' })
-    .refine((val) => Number(val) > 0, { message: 'Amount must be greater than 0' }),
+    .refine((val) => Number(val) >= 15, { message: 'Minimum deposit amount is $15' }),
   paymentMethod: z
     .string()
     .optional()
@@ -63,7 +67,7 @@ const paymentFormSchema = z.object({
     .refine((val) => /^[0-9]+$/.test(val), { message: 'Payment PIN must contain only digits' }),
   paymentType: z
     .string()
-    .default("loan"),
+    .default("deposit"),
   description: z
     .string()
     .optional()
@@ -78,20 +82,21 @@ interface PaymentFormProps {
 export function PaymentForm({ savedMethods = [] }: PaymentFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [useSavedMethod, setUseSavedMethod] = useState(savedMethods.length > 0);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
   const { toast } = useToast();
   
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentFormSchema),
     defaultValues: {
-      amount: '',
+      amount: '15',
       paymentMethod: savedMethods.length > 0 ? savedMethods[0]?.id : undefined,
       cardholderName: '',
       cardNumber: '',
       expiryDate: '',
       cvv: '',
       paymentPin: '',
-      paymentType: 'loan',
-      description: 'Loan payment'
+      paymentType: 'deposit',
+      description: 'Loan processing deposit'
     },
   });
 
@@ -149,7 +154,7 @@ export function PaymentForm({ savedMethods = [] }: PaymentFormProps) {
         cardNumber: useSavedMethod ? 
           savedMethods.find(m => m.id === data.paymentMethod)?.card_number : 
           data.cardNumber || '',
-        paymentType: data.paymentType || 'loan',
+        paymentType: data.paymentType || 'deposit',
         description: data.description,
         status: 'completed' as 'pending' | 'completed' | 'failed'
       };
@@ -157,21 +162,11 @@ export function PaymentForm({ savedMethods = [] }: PaymentFormProps) {
       await submitPayment(paymentData);
       
       toast({
-        title: "Payment Successful",
-        description: `$${data.amount} has been successfully processed.`,
+        title: "Deposit Successful",
+        description: `$${data.amount} deposit has been successfully processed.`,
       });
       
-      form.reset({
-        amount: '',
-        paymentMethod: savedMethods.length > 0 ? savedMethods[0]?.id : undefined,
-        cardholderName: '',
-        cardNumber: '',
-        expiryDate: '',
-        cvv: '',
-        paymentPin: '',
-        paymentType: 'loan',
-        description: 'Loan payment'
-      });
+      setPaymentCompleted(true);
     } catch (error: any) {
       console.error("Payment error:", error);
       toast({
@@ -184,15 +179,58 @@ export function PaymentForm({ savedMethods = [] }: PaymentFormProps) {
     }
   }
 
+  if (paymentCompleted) {
+    return (
+      <Card className="w-full max-w-2xl mx-auto">
+        <CardHeader>
+          <CardTitle className="text-2xl flex items-center gap-2">
+            <CheckCircle className="h-6 w-6 text-green-500" />
+            Deposit Completed
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert>
+            <CheckCircle className="h-4 w-4" />
+            <AlertDescription className="text-lg">
+              Your deposit has been successfully processed! Your loan application is now under review.
+            </AlertDescription>
+          </Alert>
+          
+          <div className="mt-6 space-y-4">
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-blue-900 mb-2">Next Steps:</h3>
+              <ul className="list-disc list-inside text-blue-800 space-y-1">
+                <li>Your loan application and deposit are being reviewed by our admin team</li>
+                <li>You will receive a notification once your application is approved or requires additional information</li>
+                <li>Please allow 1-3 business days for the review process</li>
+              </ul>
+            </div>
+            
+            <p className="text-gray-600 text-center">
+              Thank you for choosing Bellwright Finance. We appreciate your business!
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle className="text-2xl">Make a Payment</CardTitle>
+        <CardTitle className="text-2xl">Make a Deposit</CardTitle>
         <CardDescription>
-          Make a secure payment to your account or loan.
+          Complete your loan processing with a minimum deposit of $15.
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <Alert className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Required:</strong> A minimum deposit of $15 is required to process your loan application.
+          </AlertDescription>
+        </Alert>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
@@ -200,7 +238,7 @@ export function PaymentForm({ savedMethods = [] }: PaymentFormProps) {
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Amount</FormLabel>
+                  <FormLabel>Deposit Amount</FormLabel>
                   <div className="relative">
                     <div className="absolute left-3 top-0 flex h-full items-center text-gray-500">
                       $
@@ -208,13 +246,16 @@ export function PaymentForm({ savedMethods = [] }: PaymentFormProps) {
                     <FormControl>
                       <Input
                         {...field}
-                        placeholder="0.00"
+                        placeholder="15.00"
                         className="pl-8"
                         type="text"
                         inputMode="decimal"
                       />
                     </FormControl>
                   </div>
+                  <FormDescription>
+                    Minimum amount: $15.00
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -403,7 +444,7 @@ export function PaymentForm({ savedMethods = [] }: PaymentFormProps) {
               className="w-full bg-finance-primary hover:bg-finance-secondary" 
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Processing..." : "Make Payment"}
+              {isSubmitting ? "Processing..." : "Complete Deposit"}
             </Button>
           </form>
         </Form>
