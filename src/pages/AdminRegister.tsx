@@ -59,7 +59,7 @@ export default function AdminRegister() {
         .from('admin_users')
         .select('email')
         .eq('email', values.email.toLowerCase())
-        .single();
+        .maybeSingle();
       
       if (existingAdmin) {
         toast({
@@ -70,6 +70,8 @@ export default function AdminRegister() {
         setIsLoading(false);
         return;
       }
+      
+      console.log('Starting admin registration for:', values.email);
       
       // Sign up the user with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -84,7 +86,10 @@ export default function AdminRegister() {
         }
       });
       
+      console.log('Auth signup result:', { authData, authError });
+      
       if (authError) {
+        console.error('Auth error:', authError);
         throw new Error(authError.message);
       }
       
@@ -92,11 +97,10 @@ export default function AdminRegister() {
         throw new Error("Failed to create user account");
       }
 
-      // Sign out immediately after registration since they need approval first
-      await supabase.auth.signOut();
+      console.log('User created with ID:', authData.user.id);
       
       // Insert admin record with pending status
-      const { error: adminError } = await supabase
+      const { data: adminData, error: adminError } = await supabase
         .from('admin_users')
         .insert({
           id: authData.user.id,
@@ -104,11 +108,21 @@ export default function AdminRegister() {
           first_name: values.firstName,
           last_name: values.lastName,
           status: 'pending'
-        });
+        })
+        .select()
+        .single();
+      
+      console.log('Admin record insert result:', { adminData, adminError });
       
       if (adminError) {
+        console.error('Admin record error:', adminError);
         throw new Error("Failed to create admin record: " + adminError.message);
       }
+
+      // Sign out the user immediately after registration since they need approval first
+      await supabase.auth.signOut();
+      
+      console.log('Admin registration completed successfully');
       
       toast({
         title: "Registration Successful",

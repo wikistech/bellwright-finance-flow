@@ -15,7 +15,8 @@ import {
   Shield,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  RefreshCw
 } from 'lucide-react';
 
 interface PendingAdmin {
@@ -33,6 +34,7 @@ export default function SuperAdminDashboard() {
   const [pendingLoans, setPendingLoans] = useState(0);
   const [pendingAdmins, setPendingAdmins] = useState<PendingAdmin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -50,6 +52,8 @@ export default function SuperAdminDashboard() {
   
   const loadDashboardData = async () => {
     setIsLoading(true);
+    console.log('Loading SuperAdmin dashboard data...');
+    
     try {
       // Get user count
       const { count: userCountData, error: userError } = await supabase
@@ -58,6 +62,9 @@ export default function SuperAdminDashboard() {
       
       if (!userError) {
         setUserCount(userCountData || 0);
+        console.log('User count loaded:', userCountData);
+      } else {
+        console.error('Error loading user count:', userError);
       }
       
       // Get loan counts
@@ -68,6 +75,9 @@ export default function SuperAdminDashboard() {
       if (!loanError && loanData) {
         setLoanCount(loanData.length);
         setPendingLoans(loanData.filter(loan => loan.status === 'pending').length);
+        console.log('Loan data loaded:', { total: loanData.length, pending: loanData.filter(loan => loan.status === 'pending').length });
+      } else {
+        console.error('Error loading loan data:', loanError);
       }
 
       // Get pending admin registrations
@@ -77,18 +87,45 @@ export default function SuperAdminDashboard() {
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      if (!adminError && adminData) {
-        setPendingAdmins(adminData);
+      console.log('Admin data query result:', { adminData, adminError });
+
+      if (!adminError) {
+        setPendingAdmins(adminData || []);
+        console.log('Pending admins loaded:', adminData?.length || 0);
+      } else {
+        console.error('Error loading admin data:', adminError);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load pending admin registrations.",
+        });
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load dashboard data.",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const refreshData = async () => {
+    setIsRefreshing(true);
+    await loadDashboardData();
+    setIsRefreshing(false);
+    toast({
+      title: "Data Refreshed",
+      description: "Dashboard data has been updated.",
+    });
+  };
+
   const handleApproveAdmin = async (adminId: string) => {
     try {
+      console.log('Approving admin:', adminId);
+      
       const { error } = await supabase
         .from('admin_users')
         .update({ 
@@ -97,7 +134,10 @@ export default function SuperAdminDashboard() {
         })
         .eq('id', adminId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error approving admin:', error);
+        throw error;
+      }
 
       toast({
         title: 'Admin Approved',
@@ -105,7 +145,7 @@ export default function SuperAdminDashboard() {
       });
 
       // Reload the pending admins list
-      loadDashboardData();
+      await loadDashboardData();
     } catch (error: any) {
       console.error('Error approving admin:', error);
       toast({
@@ -118,6 +158,8 @@ export default function SuperAdminDashboard() {
 
   const handleRejectAdmin = async (adminId: string) => {
     try {
+      console.log('Rejecting admin:', adminId);
+      
       const { error } = await supabase
         .from('admin_users')
         .update({ 
@@ -126,7 +168,10 @@ export default function SuperAdminDashboard() {
         })
         .eq('id', adminId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error rejecting admin:', error);
+        throw error;
+      }
 
       toast({
         title: 'Admin Rejected',
@@ -134,7 +179,7 @@ export default function SuperAdminDashboard() {
       });
 
       // Reload the pending admins list
-      loadDashboardData();
+      await loadDashboardData();
     } catch (error: any) {
       console.error('Error rejecting admin:', error);
       toast({
@@ -184,6 +229,16 @@ export default function SuperAdminDashboard() {
             <h1 className="text-2xl font-bold text-indigo-600">SuperAdmin Dashboard</h1>
           </div>
           <div className="flex items-center space-x-4">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={refreshData}
+              disabled={isRefreshing}
+              className="text-gray-600 hover:text-gray-900"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
             <Button 
               variant="ghost" 
               size="sm"
@@ -257,7 +312,8 @@ export default function SuperAdminDashboard() {
               <div className="text-center py-4">Loading pending admins...</div>
             ) : pendingAdmins.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                No pending admin registrations
+                <p>No pending admin registrations</p>
+                <p className="text-sm mt-2">New admin registrations will appear here for approval.</p>
               </div>
             ) : (
               <div className="space-y-4">
