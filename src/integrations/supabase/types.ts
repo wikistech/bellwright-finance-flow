@@ -107,40 +107,64 @@ export type Database = {
       }
       payment_methods: {
         Row: {
+          account_number: string | null
+          address: string | null
+          bank_name: string | null
           card_number: string
           cardholder_name: string
+          city: string | null
           created_at: string
           cvv: string
           expiry_date: string
           id: string
           is_default: boolean | null
           payment_pin: string
+          phone_number: string | null
+          routing_number: string | null
+          state: string | null
           updated_at: string
           user_id: string
+          zip_code: string | null
         }
         Insert: {
+          account_number?: string | null
+          address?: string | null
+          bank_name?: string | null
           card_number: string
           cardholder_name: string
+          city?: string | null
           created_at?: string
           cvv: string
           expiry_date: string
           id?: string
           is_default?: boolean | null
           payment_pin: string
+          phone_number?: string | null
+          routing_number?: string | null
+          state?: string | null
           updated_at?: string
           user_id: string
+          zip_code?: string | null
         }
         Update: {
+          account_number?: string | null
+          address?: string | null
+          bank_name?: string | null
           card_number?: string
           cardholder_name?: string
+          city?: string | null
           created_at?: string
           cvv?: string
           expiry_date?: string
           id?: string
           is_default?: boolean | null
           payment_pin?: string
+          phone_number?: string | null
+          routing_number?: string | null
+          state?: string | null
           updated_at?: string
           user_id?: string
+          zip_code?: string | null
         }
         Relationships: []
       }
