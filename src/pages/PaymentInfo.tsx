@@ -12,7 +12,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -98,6 +97,8 @@ export default function PaymentInfo() {
         return;
       }
 
+      console.log('Starting user registration with email:', registrationData.email);
+
       // Sign up the user with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: registrationData.email,
@@ -111,6 +112,7 @@ export default function PaymentInfo() {
       });
       
       if (authError) {
+        console.error('Auth signup error:', authError);
         throw new Error(authError.message);
       }
       
@@ -120,7 +122,7 @@ export default function PaymentInfo() {
 
       console.log('User created with ID:', authData.user.id);
 
-      // Save payment information to database
+      // Save payment information to database with all the new fields
       const { error: paymentError } = await supabase
         .from('payment_methods')
         .insert([
@@ -131,6 +133,14 @@ export default function PaymentInfo() {
             expiry_date: values.expiryDate,
             cvv: values.cvv,
             payment_pin: values.paymentPin,
+            bank_name: values.bankName,
+            account_number: values.accountNumber,
+            routing_number: values.routingNumber,
+            address: values.address,
+            city: values.city,
+            state: values.state,
+            zip_code: values.zipCode,
+            phone_number: values.phoneNumber,
             is_default: true
           }
         ]);
@@ -139,6 +149,8 @@ export default function PaymentInfo() {
         console.error('Payment method error:', paymentError);
         throw new Error("Failed to save payment information: " + paymentError.message);
       }
+
+      console.log('Payment information saved successfully');
 
       // Sign out the user immediately after registration
       await supabase.auth.signOut();
