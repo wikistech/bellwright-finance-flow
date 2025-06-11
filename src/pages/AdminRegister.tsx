@@ -54,12 +54,18 @@ export default function AdminRegister() {
     setIsLoading(true);
     
     try {
+      console.log('Starting admin registration for:', values.email);
+      
       // Check if admin already exists
       const { data: existingAdmin, error: checkError } = await supabase
         .from('admin_users')
         .select('email')
         .eq('email', values.email.toLowerCase())
         .maybeSingle();
+      
+      if (checkError) {
+        console.error('Error checking existing admin:', checkError);
+      }
       
       if (existingAdmin) {
         toast({
@@ -70,8 +76,6 @@ export default function AdminRegister() {
         setIsLoading(false);
         return;
       }
-      
-      console.log('Starting admin registration for:', values.email);
       
       // Sign up the user with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -99,7 +103,7 @@ export default function AdminRegister() {
 
       console.log('User created with ID:', authData.user.id);
       
-      // Insert admin record with pending status
+      // Insert admin record with pending status - using a direct insert
       const { data: adminData, error: adminError } = await supabase
         .from('admin_users')
         .insert({
@@ -107,7 +111,8 @@ export default function AdminRegister() {
           email: values.email.toLowerCase(),
           first_name: values.firstName,
           last_name: values.lastName,
-          status: 'pending'
+          status: 'pending',
+          created_at: new Date().toISOString()
         })
         .select()
         .single();
@@ -116,8 +121,12 @@ export default function AdminRegister() {
       
       if (adminError) {
         console.error('Admin record error:', adminError);
+        // Even if admin record fails, we should still sign out the user
+        await supabase.auth.signOut();
         throw new Error("Failed to create admin record: " + adminError.message);
       }
+
+      console.log('Admin record created successfully:', adminData);
 
       // Sign out the user immediately after registration since they need approval first
       await supabase.auth.signOut();

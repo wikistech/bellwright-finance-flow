@@ -15,6 +15,7 @@ import Index from "./pages/Index";
 import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import PaymentInfo from "./pages/PaymentInfo";
 import PaymentSetup from "./pages/PaymentSetup";
 import Payments from "./pages/Payments";
 import Loans from "./pages/Loans";
@@ -44,13 +45,14 @@ const App = () => (
               <Route path="/" element={<><LandingPage /><AdminPortalLink /></>} />
               <Route path="/login" element={<><Login /><AdminPortalLink /></>} />
               <Route path="/register" element={<><Register /><AdminPortalLink /></>} />
+              <Route path="/payment-info" element={<PaymentInfo />} />
               <Route path="/payment-setup" element={<PaymentSetup />} />
               
               {/* Admin Auth Routes (public) */}
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/admin/register" element={<AdminRegister />} />
               
-              {/* SuperAdmin Auth Routes (public) - removed register route */}
+              {/* SuperAdmin Auth Routes (public) */}
               <Route path="/superadmin/login" element={<SuperAdminLogin />} />
               
               {/* Protected Routes */}

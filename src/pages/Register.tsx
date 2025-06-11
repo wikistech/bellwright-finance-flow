@@ -18,7 +18,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { supabase } from '@/integrations/supabase/client';
+import { useRegistration } from '@/contexts/RegistrationContext';
 
 const registerSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
@@ -34,11 +34,11 @@ const registerSchema = z.object({
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function Register() {
-  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { updateRegistrationData } = useRegistration();
   
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -52,61 +52,22 @@ export default function Register() {
   });
   
   const onSubmit = async (values: RegisterFormValues) => {
-    setIsLoading(true);
-    
     try {
-      // Check if user already exists
-      const { data: existingUser, error: checkError } = await supabase
-        .from('verification_codes')
-        .select('user_id')
-        .limit(1);
-      
-      // Sign up the user with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Store registration data in context
+      updateRegistrationData({
+        firstName: values.firstName,
+        lastName: values.lastName,
         email: values.email,
-        password: values.password,
-        options: {
-          data: {
-            first_name: values.firstName,
-            last_name: values.lastName
-          }
-        }
+        password: values.password
       });
       
-      if (authError) {
-        throw new Error(authError.message);
-      }
-      
-      if (!authData.user) {
-        throw new Error("Failed to create user account");
-      }
-
-      // Create verification code entry
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date();
-      expiresAt.setMinutes(expiresAt.getMinutes() + 10); // 10 minutes expiry
-
-      const { error: verificationError } = await supabase
-        .from('verification_codes')
-        .insert({
-          user_id: authData.user.id,
-          code: verificationCode,
-          expires_at: expiresAt.toISOString(),
-          verified: false
-        });
-
-      if (verificationError) {
-        console.error('Verification error:', verificationError);
-        // Continue anyway - verification is not critical for the flow
-      }
-      
       toast({
-        title: "Account Created Successfully",
+        title: "Registration Data Saved",
         description: "Please complete your payment information to continue.",
       });
       
-      // Redirect to payment setup
-      navigate('/payment-setup');
+      // Redirect to payment info page
+      navigate('/payment-info');
     } catch (error: any) {
       console.error('Registration error:', error);
       toast({
@@ -114,8 +75,6 @@ export default function Register() {
         title: "Registration Failed",
         description: error.message || "An error occurred during registration.",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
   
@@ -252,10 +211,9 @@ export default function Register() {
                 
                 <Button 
                   type="submit" 
-                  className="w-full bg-finance-primary hover:bg-finance-secondary" 
-                  disabled={isLoading}
+                  className="w-full bg-finance-primary hover:bg-finance-secondary"
                 >
-                  {isLoading ? "Creating account..." : "Create Account"}
+                  Continue to Payment Information
                 </Button>
               </form>
             </Form>
