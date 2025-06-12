@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -37,20 +36,31 @@ export default function AdminLogin() {
     setErrorMessage('');
 
     try {
-      // First check if the admin exists and their status
+      console.log('Starting admin login for:', email);
+
+      // First check if the admin exists and their current status
       const { data: adminData, error: adminCheckError } = await supabase
         .from('admin_users')
-        .select('id, status, first_name, last_name')
+        .select('id, status, first_name, last_name, approved_at')
         .eq('email', email.toLowerCase())
-        .single();
+        .maybeSingle();
 
-      if (adminCheckError || !adminData) {
+      console.log('Admin check result:', { adminData, adminCheckError });
+
+      if (adminCheckError) {
+        console.error('Error checking admin:', adminCheckError);
+        throw new Error('Error checking admin status. Please try again.');
+      }
+
+      if (!adminData) {
         throw new Error('Invalid admin credentials. Please check your email and try again.');
       }
 
-      // Check admin status before attempting login
+      console.log('Admin found with status:', adminData.status);
+
+      // Check admin status with more detailed feedback
       if (adminData.status === 'pending') {
-        throw new Error('Your admin account is pending approval by a superadmin. Please wait for approval before logging in.');
+        throw new Error('Your admin account is still pending approval by a superadmin. Please wait for approval before logging in.');
       }
 
       if (adminData.status === 'rejected') {
@@ -58,8 +68,10 @@ export default function AdminLogin() {
       }
 
       if (adminData.status !== 'approved') {
-        throw new Error('Your admin account status is invalid. Please contact support.');
+        throw new Error(`Your admin account status is "${adminData.status}". Please contact support.`);
       }
+
+      console.log('Admin is approved, proceeding with authentication...');
 
       // If admin is approved, proceed with authentication
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -68,6 +80,7 @@ export default function AdminLogin() {
       });
       
       if (authError) {
+        console.error('Authentication error:', authError);
         throw new Error(authError.message);
       }
 
@@ -75,8 +88,11 @@ export default function AdminLogin() {
         throw new Error('Login failed - no user data received');
       }
 
+      console.log('Authentication successful for user:', authData.user.id);
+
       // Verify the logged-in user matches the admin record
       if (authData.user.id !== adminData.id) {
+        console.error('User ID mismatch:', { authUserId: authData.user.id, adminId: adminData.id });
         await supabase.auth.signOut();
         throw new Error('Authentication error. Please try again.');
       }
@@ -87,6 +103,7 @@ export default function AdminLogin() {
         description: `Welcome ${adminData.first_name} ${adminData.last_name}! Redirecting to admin dashboard...`,
       });
 
+      console.log('Login successful, redirecting to dashboard');
       navigate('/admin/dashboard');
     } catch (error: any) {
       console.error('Login error:', error);

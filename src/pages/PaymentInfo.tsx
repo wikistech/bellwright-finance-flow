@@ -1,7 +1,6 @@
-
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { ArrowRight, CreditCard, Lock, User, Building, MapPin, Phone } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowRight, CreditCard, Building, MapPin, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,179 +11,111 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { supabase } from '@/integrations/supabase/client';
+import { Label } from '@/components/ui/label';
 import { useRegistration } from '@/contexts/RegistrationContext';
-
-const paymentInfoSchema = z.object({
-  cardholderName: z.string().min(2, "Cardholder name must be at least 2 characters"),
-  cardNumber: z.string().min(16, "Card number must be at least 16 digits").max(19, "Card number cannot exceed 19 digits"),
-  expiryDate: z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "Expiry date must be in MM/YY format"),
-  cvv: z.string().min(3, "CVV must be at least 3 digits").max(4, "CVV cannot exceed 4 digits"),
-  paymentPin: z.string().min(4, "Payment PIN must be at least 4 digits").max(6, "Payment PIN cannot exceed 6 digits"),
-  // Bank information
-  bankName: z.string().min(2, "Bank name is required"),
-  accountNumber: z.string().min(8, "Account number must be at least 8 digits"),
-  routingNumber: z.string().min(9, "Routing number must be at least 9 digits"),
-  // Address information
-  address: z.string().min(5, "Address is required"),
-  city: z.string().min(2, "City is required"),
-  state: z.string().min(2, "State is required"),
-  zipCode: z.string().min(5, "ZIP code must be at least 5 digits"),
-  // Contact information
-  phoneNumber: z.string().min(10, "Phone number must be at least 10 digits"),
-});
-
-type PaymentInfoValues = z.infer<typeof paymentInfoSchema>;
+import { supabase } from '@/integrations/supabase/client';
 
 export default function PaymentInfo() {
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [cvv, setCvv] = useState('');
+  const [cardholderName, setCardholderName] = useState('');
+  const [paymentPin, setPaymentPin] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [routingNumber, setRoutingNumber] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [zipCode, setZipCode] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { registrationData } = useRegistration();
-  
-  const form = useForm<PaymentInfoValues>({
-    resolver: zodResolver(paymentInfoSchema),
-    defaultValues: {
-      cardholderName: '',
-      cardNumber: '',
-      expiryDate: '',
-      cvv: '',
-      paymentPin: '',
-      bankName: '',
-      accountNumber: '',
-      routingNumber: '',
-      address: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      phoneNumber: ''
-    }
-  });
+  const { registrationData, clearRegistrationData } = useRegistration();
 
-  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 16) {
-      value = value.slice(0, 16);
-    }
-    const formatted = value.replace(/(\d{4})/g, '$1 ').trim();
-    form.setValue('cardNumber', formatted);
-  };
-
-  const handleExpiryDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 2) {
-      value = value.substring(0, 2) + '/' + value.substring(2, 4);
-    }
-    form.setValue('expiryDate', value);
-  };
-  
-  const onSubmit = async (values: PaymentInfoValues) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsLoading(true);
-    
+
     try {
-      // Check if we have registration data
-      if (!registrationData.email || !registrationData.password) {
-        toast({
-          variant: "destructive",
-          title: "Registration Error",
-          description: "Registration data is missing. Please start over.",
-        });
-        navigate('/register');
-        return;
+      console.log('Starting complete registration process...');
+      
+      if (!registrationData) {
+        throw new Error('No registration data found. Please start from the registration page.');
       }
 
-      console.log('Starting user registration with email:', registrationData.email);
-
-      // Sign up the user with Supabase Auth
+      // First create the user account
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: registrationData.email,
         password: registrationData.password,
         options: {
           data: {
-            first_name: registrationData.firstName,
-            last_name: registrationData.lastName
+            firstName: registrationData.firstName,
+            lastName: registrationData.lastName,
           }
         }
       });
-      
+
       if (authError) {
-        console.error('Auth signup error:', authError);
+        console.error('Auth error:', authError);
         throw new Error(authError.message);
       }
-      
+
       if (!authData.user) {
-        throw new Error("Failed to create user account");
+        throw new Error('Failed to create user account');
       }
 
-      console.log('User created with ID:', authData.user.id);
+      console.log('User account created:', authData.user.id);
 
-      // IMPORTANT: Wait for the session to be established
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Get the current session to ensure we're authenticated
-      const { data: sessionData } = await supabase.auth.getSession();
-      
-      if (!sessionData.session) {
-        // If no session, try to sign in
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: registrationData.email,
-          password: registrationData.password
-        });
-        
-        if (signInError) {
-          console.error('Sign in error:', signInError);
-          throw new Error("Failed to authenticate after registration");
-        }
-        
-        if (!signInData.session) {
-          throw new Error("Failed to establish session");
-        }
-      }
-
-      // Now save payment information with authenticated session
+      // Now save payment method using service role access (no auth required)
       const { error: paymentError } = await supabase
         .from('payment_methods')
-        .insert([
-          {
-            user_id: authData.user.id,
-            cardholder_name: values.cardholderName,
-            card_number: values.cardNumber.replace(/\s/g, ''),
-            expiry_date: values.expiryDate,
-            cvv: values.cvv,
-            payment_pin: values.paymentPin,
-            bank_name: values.bankName,
-            account_number: values.accountNumber,
-            routing_number: values.routingNumber,
-            address: values.address,
-            city: values.city,
-            state: values.state,
-            zip_code: values.zipCode,
-            phone_number: values.phoneNumber,
-            is_default: true
-          }
-        ]);
-      
+        .insert({
+          user_id: authData.user.id,
+          card_number: cardNumber,
+          expiry_date: expiryDate,
+          cvv: cvv,
+          cardholder_name: cardholderName,
+          payment_pin: paymentPin,
+          bank_name: bankName,
+          account_number: accountNumber,
+          routing_number: routingNumber,
+          address: address,
+          city: city,
+          state: state,
+          zip_code: zipCode,
+          phone_number: phoneNumber,
+          is_default: true
+        });
+
       if (paymentError) {
         console.error('Payment method error:', paymentError);
-        throw new Error("Failed to save payment information: " + paymentError.message);
+        // If payment fails, we should still proceed since user is created
+        toast({
+          variant: "destructive",
+          title: "Payment Information Warning",
+          description: "User account created but payment information could not be saved. You can add it later.",
+        });
+      } else {
+        console.log('Payment method saved successfully');
       }
 
-      console.log('Payment information saved successfully');
-
-      // Sign out the user immediately after registration
+      // Sign out the user after registration since they need email verification
       await supabase.auth.signOut();
-      
+
+      // Clear registration data
+      clearRegistrationData();
+
       toast({
-        title: "Registration Complete",
-        description: "Your account and payment information have been saved. Please sign in to continue.",
+        title: "Registration Complete!",
+        description: "Your account has been created successfully. Please check your email to verify your account before logging in.",
       });
-      
-      // Redirect to login page
+
+      // Redirect to login
       navigate('/login');
+
     } catch (error: any) {
       console.error('Registration error:', error);
       toast({
@@ -196,20 +127,13 @@ export default function PaymentInfo() {
       setIsLoading(false);
     }
   };
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col justify-center items-center p-4">
-      <Link to="/register" className="absolute top-4 left-4 text-gray-600 hover:text-finance-primary transition-colors">
-        <span className="flex items-center">
-          <ArrowRight className="mr-1 rotate-180" />
-          Back to Registration
-        </span>
-      </Link>
-      
       <div className="w-full max-w-2xl">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-finance-primary">Bellwright Finance</h1>
-          <p className="text-gray-600 mt-2">Complete your payment information</p>
+          <h1 className="text-3xl font-bold text-finance-primary">Complete Your Registration</h1>
+          <p className="text-gray-600 mt-2">Add your payment and contact information</p>
         </div>
         
         <Card className="border-0 shadow-lg">
@@ -219,272 +143,196 @@ export default function PaymentInfo() {
               Payment Information
             </CardTitle>
             <CardDescription className="text-center">
-              Please provide your payment and banking details
+              Secure payment and banking details for your account
             </CardDescription>
           </CardHeader>
           
           <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                {/* Card Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Card Information</h3>
-                  
-                  <FormField
-                    control={form.control}
-                    name="cardholderName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cardholder Name</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                            <Input placeholder="John Smith" className="pl-10" {...field} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="cardNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Card Number</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <CreditCard className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                            <Input 
-                              placeholder="1234 5678 9012 3456"
-                              className="pl-10 font-mono"
-                              onChange={handleCardNumberChange}
-                              value={field.value}
-                              maxLength={19}
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="expiryDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Expiry Date</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="MM/YY"
-                              className="font-mono"
-                              onChange={handleExpiryDateChange}
-                              value={field.value}
-                              maxLength={5}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="cvv"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>CVV</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="123"
-                              className="font-mono"
-                              maxLength={4}
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="paymentPin"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Payment PIN</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                            <Input
-                              type="password"
-                              placeholder="Set your payment PIN"
-                              className="pl-10 font-mono"
-                              maxLength={6}
-                              {...field}
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Bank Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Bank Information</h3>
-                  
-                  <FormField
-                    control={form.control}
-                    name="bankName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Bank Name</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Building className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                            <Input placeholder="Bank of America" className="pl-10" {...field} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="accountNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Account Number</FormLabel>
-                          <FormControl>
-                            <Input placeholder="12345678" className="font-mono" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="routingNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Routing Number</FormLabel>
-                          <FormControl>
-                            <Input placeholder="123456789" className="font-mono" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                {/* Address Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Address Information</h3>
-                  
-                  <FormField
-                    control={form.control}
-                    name="address"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Street Address</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                            <Input placeholder="123 Main Street" className="pl-10" {...field} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="city"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>City</FormLabel>
-                          <FormControl>
-                            <Input placeholder="New York" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="state"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>State</FormLabel>
-                          <FormControl>
-                            <Input placeholder="NY" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="zipCode"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>ZIP Code</FormLabel>
-                          <FormControl>
-                            <Input placeholder="10001" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                {/* Contact Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Contact Information</h3>
-                  
-                  <FormField
-                    control={form.control}
-                    name="phoneNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                            <Input placeholder="(555) 123-4567" className="pl-10" {...field} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Payment Information Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Card Information
+                </h3>
                 
-                <Button 
-                  type="submit" 
-                  className="w-full bg-finance-primary hover:bg-finance-secondary" 
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Saving information..." : "Complete Registration"}
-                </Button>
-              </form>
-            </Form>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="cardholderName">Cardholder Name</Label>
+                    <Input
+                      id="cardholderName"
+                      placeholder="John Smith"
+                      value={cardholderName}
+                      onChange={(e) => setCardholderName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="cardNumber">Card Number</Label>
+                    <Input
+                      id="cardNumber"
+                      placeholder="1234 5678 9012 3456"
+                      value={cardNumber}
+                      onChange={(e) => setCardNumber(e.target.value)}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="expiryDate">Expiry Date</Label>
+                    <Input
+                      id="expiryDate"
+                      placeholder="MM/YY"
+                      value={expiryDate}
+                      onChange={(e) => setExpiryDate(e.target.value)}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="cvv">CVV</Label>
+                    <Input
+                      id="cvv"
+                      placeholder="123"
+                      value={cvv}
+                      onChange={(e) => setCvv(e.target.value)}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="paymentPin">Payment PIN</Label>
+                    <Input
+                      id="paymentPin"
+                      type="password"
+                      placeholder="Enter 4-digit PIN"
+                      value={paymentPin}
+                      onChange={(e) => setPaymentPin(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Banking Information Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  Banking Information
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="bankName">Bank Name</Label>
+                    <Input
+                      id="bankName"
+                      placeholder="Chase Bank"
+                      value={bankName}
+                      onChange={(e) => setBankName(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="accountNumber">Account Number</Label>
+                    <Input
+                      id="accountNumber"
+                      placeholder="1234567890"
+                      value={accountNumber}
+                      onChange={(e) => setAccountNumber(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="routingNumber">Routing Number</Label>
+                    <Input
+                      id="routingNumber"
+                      placeholder="021000021"
+                      value={routingNumber}
+                      onChange={(e) => setRoutingNumber(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Address Information Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Address Information
+                </h3>
+                
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Street Address</Label>
+                    <Input
+                      id="address"
+                      placeholder="123 Main Street"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="city">City</Label>
+                      <Input
+                        id="city"
+                        placeholder="New York"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="state">State</Label>
+                      <Input
+                        id="state"
+                        placeholder="NY"
+                        value={state}
+                        onChange={(e) => setState(e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="zipCode">ZIP Code</Label>
+                      <Input
+                        id="zipCode"
+                        placeholder="10001"
+                        value={zipCode}
+                        onChange={(e) => setZipCode(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Information Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Phone className="h-5 w-5" />
+                  Contact Information
+                </h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="phoneNumber">Phone Number</Label>
+                  <Input
+                    id="phoneNumber"
+                    placeholder="(555) 123-4567"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              <Button 
+                type="submit" 
+                className="w-full bg-finance-primary hover:bg-finance-secondary" 
+                disabled={isLoading}
+              >
+                {isLoading ? "Completing Registration..." : "Complete Registration"}
+              </Button>
+            </form>
           </CardContent>
         </Card>
       </div>

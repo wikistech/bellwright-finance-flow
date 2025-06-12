@@ -16,7 +16,9 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  RefreshCw
+  RefreshCw,
+  Trash2,
+  UserCheck
 } from 'lucide-react';
 
 interface PendingAdmin {
@@ -28,14 +30,25 @@ interface PendingAdmin {
   created_at: string;
 }
 
+interface ApprovedAdmin {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  status: string;
+  approved_at: string;
+}
+
 export default function SuperAdminDashboard() {
   const [userCount, setUserCount] = useState(0);
   const [loanCount, setLoanCount] = useState(0);
   const [pendingLoans, setPendingLoans] = useState(0);
   const [pendingAdmins, setPendingAdmins] = useState<PendingAdmin[]>([]);
+  const [approvedAdmins, setApprovedAdmins] = useState<ApprovedAdmin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [processingAdmin, setProcessingAdmin] = useState<string | null>(null);
+  const [deletingAdmin, setDeletingAdmin] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -82,24 +95,35 @@ export default function SuperAdminDashboard() {
       }
 
       // Get pending admin registrations
-      const { data: adminData, error: adminError } = await supabase
+      const { data: pendingAdminData, error: pendingAdminError } = await supabase
         .from('admin_users')
         .select('id, email, first_name, last_name, status, created_at')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      console.log('Admin data query result:', { adminData, adminError });
+      console.log('Pending admin data query result:', { pendingAdminData, pendingAdminError });
 
-      if (!adminError) {
-        setPendingAdmins(adminData || []);
-        console.log('Pending admins loaded:', adminData?.length || 0);
+      if (!pendingAdminError) {
+        setPendingAdmins(pendingAdminData || []);
+        console.log('Pending admins loaded:', pendingAdminData?.length || 0);
       } else {
-        console.error('Error loading admin data:', adminError);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load pending admin registrations.",
-        });
+        console.error('Error loading pending admin data:', pendingAdminError);
+      }
+
+      // Get approved admin accounts
+      const { data: approvedAdminData, error: approvedAdminError } = await supabase
+        .from('admin_users')
+        .select('id, email, first_name, last_name, status, approved_at')
+        .eq('status', 'approved')
+        .order('approved_at', { ascending: false });
+
+      console.log('Approved admin data query result:', { approvedAdminData, approvedAdminError });
+
+      if (!approvedAdminError) {
+        setApprovedAdmins(approvedAdminData || []);
+        console.log('Approved admins loaded:', approvedAdminData?.length || 0);
+      } else {
+        console.error('Error loading approved admin data:', approvedAdminError);
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -130,7 +154,6 @@ export default function SuperAdminDashboard() {
     try {
       console.log('Approving admin:', adminId);
       
-      // Use the service role or public access to update admin status
       const { data, error } = await supabase
         .from('admin_users')
         .update({ 
@@ -153,8 +176,8 @@ export default function SuperAdminDashboard() {
         description: 'The admin account has been approved successfully. They can now log in.',
       });
 
-      // Remove the approved admin from the pending list immediately
-      setPendingAdmins(prev => prev.filter(admin => admin.id !== adminId));
+      // Refresh data to show updated lists
+      await loadDashboardData();
     } catch (error: any) {
       console.error('Error approving admin:', error);
       toast({
@@ -174,7 +197,6 @@ export default function SuperAdminDashboard() {
     try {
       console.log('Rejecting admin:', adminId);
       
-      // Use the service role or public access to update admin status
       const { data, error } = await supabase
         .from('admin_users')
         .update({ 
@@ -207,6 +229,54 @@ export default function SuperAdminDashboard() {
       });
     } finally {
       setProcessingAdmin(null);
+    }
+  };
+
+  const handleDeleteAdmin = async (adminId: string) => {
+    if (deletingAdmin) return;
+    
+    if (!confirm('Are you sure you want to permanently delete this admin account? This action cannot be undone.')) {
+      return;
+    }
+    
+    setDeletingAdmin(adminId);
+    try {
+      console.log('Deleting admin:', adminId);
+      
+      // First try to delete from auth.users (this will cascade to admin_users)
+      const { error: authError } = await supabase.auth.admin.deleteUser(adminId);
+      
+      if (authError) {
+        console.log('Auth deletion failed, trying direct database deletion:', authError);
+        
+        // If auth deletion fails, delete directly from admin_users table
+        const { error: dbError } = await supabase
+          .from('admin_users')
+          .delete()
+          .eq('id', adminId);
+          
+        if (dbError) {
+          console.error('Database deletion error:', dbError);
+          throw new Error(dbError.message);
+        }
+      }
+
+      toast({
+        title: 'Admin Deleted',
+        description: 'The admin account has been permanently deleted.',
+      });
+
+      // Remove from the approved list immediately
+      setApprovedAdmins(prev => prev.filter(admin => admin.id !== adminId));
+    } catch (error: any) {
+      console.error('Error deleting admin:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to delete admin: ' + (error.message || 'Unknown error'),
+      });
+    } finally {
+      setDeletingAdmin(null);
     }
   };
   
@@ -285,7 +355,8 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -310,12 +381,23 @@ export default function SuperAdminDashboard() {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
+              <CardTitle className="text-sm font-medium">Pending Loans</CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{isLoading ? '...' : pendingLoans}</div>
-              <p className="text-xs text-muted-foreground mt-1">Loans awaiting approval</p>
+              <p className="text-xs text-muted-foreground mt-1">Awaiting approval</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Approved Admins</CardTitle>
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{isLoading ? '...' : approvedAdmins.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">Active admin accounts</p>
             </CardContent>
           </Card>
         </div>
@@ -373,6 +455,59 @@ export default function SuperAdminDashboard() {
                       >
                         <XCircle className="h-4 w-4 mr-1" />
                         {processingAdmin === admin.id ? 'Rejecting...' : 'Reject'}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Approved Admins Management Section */}
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-6">
+            <h3 className="text-lg font-medium mb-4 flex items-center">
+              <UserCheck className="h-5 w-5 mr-2 text-green-500" />
+              Approved Admin Accounts ({approvedAdmins.length})
+            </h3>
+            
+            {isLoading ? (
+              <div className="text-center py-4">Loading approved admins...</div>
+            ) : approvedAdmins.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No approved admin accounts</p>
+                <p className="text-sm mt-2">Approved admin accounts will appear here.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {approvedAdmins.map((admin) => (
+                  <div key={admin.id} className="border rounded-lg p-4 flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3">
+                        <div>
+                          <h4 className="font-medium">{admin.first_name} {admin.last_name}</h4>
+                          <p className="text-sm text-gray-600">{admin.email}</p>
+                          <p className="text-xs text-gray-500">
+                            Approved: {admin.approved_at ? formatDate(admin.approved_at) : 'N/A'}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="text-green-600 bg-green-50">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Approved
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDeleteAdmin(admin.id)}
+                        disabled={deletingAdmin === admin.id}
+                        className="disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        {deletingAdmin === admin.id ? 'Deleting...' : 'Delete'}
                       </Button>
                     </div>
                   </div>
