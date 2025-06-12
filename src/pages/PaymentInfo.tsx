@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, CreditCard, Building, MapPin, Phone } from 'lucide-react';
@@ -33,7 +34,7 @@ export default function PaymentInfo() {
   
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { registrationData, clearRegistrationData } = useRegistration();
+  const { registrationData, resetRegistrationData } = useRegistration();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +70,7 @@ export default function PaymentInfo() {
 
       console.log('User account created:', authData.user.id);
 
-      // Now save payment method using service role access (no auth required)
+      // Now save payment method using the user ID
       const { error: paymentError } = await supabase
         .from('payment_methods')
         .insert({
@@ -106,7 +107,7 @@ export default function PaymentInfo() {
       await supabase.auth.signOut();
 
       // Clear registration data
-      clearRegistrationData();
+      resetRegistrationData();
 
       toast({
         title: "Registration Complete!",
