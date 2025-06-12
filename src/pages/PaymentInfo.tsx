@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, CreditCard, Building, MapPin, Phone } from 'lucide-react';
@@ -47,7 +46,7 @@ export default function PaymentInfo() {
         throw new Error('No registration data found. Please start from the registration page.');
       }
 
-      // First create the user account
+      // Create the user account with email confirmation disabled
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: registrationData.email,
         password: registrationData.password,
@@ -55,7 +54,8 @@ export default function PaymentInfo() {
           data: {
             firstName: registrationData.firstName,
             lastName: registrationData.lastName,
-          }
+          },
+          emailRedirectTo: `${window.location.origin}/login`
         }
       });
 
@@ -70,7 +70,7 @@ export default function PaymentInfo() {
 
       console.log('User account created:', authData.user.id);
 
-      // Now save payment method using the user ID
+      // Save payment method for the created user
       const { error: paymentError } = await supabase
         .from('payment_methods')
         .insert({
@@ -93,25 +93,21 @@ export default function PaymentInfo() {
 
       if (paymentError) {
         console.error('Payment method error:', paymentError);
-        // If payment fails, we should still proceed since user is created
         toast({
           variant: "destructive",
-          title: "Payment Information Warning",
-          description: "User account created but payment information could not be saved. You can add it later.",
+          title: "Payment Information Error",
+          description: "User account created but payment information could not be saved. You can add it later in settings.",
         });
       } else {
         console.log('Payment method saved successfully');
       }
-
-      // Sign out the user after registration since they need email verification
-      await supabase.auth.signOut();
 
       // Clear registration data
       resetRegistrationData();
 
       toast({
         title: "Registration Complete!",
-        description: "Your account has been created successfully. Please check your email to verify your account before logging in.",
+        description: "Your account has been created successfully. You can now log in.",
       });
 
       // Redirect to login

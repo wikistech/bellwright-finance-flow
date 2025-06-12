@@ -53,7 +53,7 @@ export default function SuperAdminDashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is superadmin via session storage (since this uses hardcoded credentials)
+    // Check if user is superadmin via session storage
     const isSuperAdmin = sessionStorage.getItem('superadmin_authenticated') === 'true';
     
     if (!isSuperAdmin) {
@@ -69,16 +69,14 @@ export default function SuperAdminDashboard() {
     console.log('Loading SuperAdmin dashboard data...');
     
     try {
-      // Get user count
+      // Get user count from payment_methods table
       const { count: userCountData, error: userError } = await supabase
-        .from('verification_codes')
+        .from('payment_methods')
         .select('user_id', { count: 'exact', head: true });
       
       if (!userError) {
         setUserCount(userCountData || 0);
         console.log('User count loaded:', userCountData);
-      } else {
-        console.error('Error loading user count:', userError);
       }
       
       // Get loan counts
@@ -90,8 +88,6 @@ export default function SuperAdminDashboard() {
         setLoanCount(loanData.length);
         setPendingLoans(loanData.filter(loan => loan.status === 'pending').length);
         console.log('Loan data loaded:', { total: loanData.length, pending: loanData.filter(loan => loan.status === 'pending').length });
-      } else {
-        console.error('Error loading loan data:', loanError);
       }
 
       // Get pending admin registrations
@@ -101,13 +97,9 @@ export default function SuperAdminDashboard() {
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      console.log('Pending admin data query result:', { pendingAdminData, pendingAdminError });
-
       if (!pendingAdminError) {
         setPendingAdmins(pendingAdminData || []);
         console.log('Pending admins loaded:', pendingAdminData?.length || 0);
-      } else {
-        console.error('Error loading pending admin data:', pendingAdminError);
       }
 
       // Get approved admin accounts
@@ -117,13 +109,9 @@ export default function SuperAdminDashboard() {
         .eq('status', 'approved')
         .order('approved_at', { ascending: false });
 
-      console.log('Approved admin data query result:', { approvedAdminData, approvedAdminError });
-
       if (!approvedAdminError) {
         setApprovedAdmins(approvedAdminData || []);
         console.log('Approved admins loaded:', approvedAdminData?.length || 0);
-      } else {
-        console.error('Error loading approved admin data:', approvedAdminError);
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -154,6 +142,7 @@ export default function SuperAdminDashboard() {
     try {
       console.log('Approving admin:', adminId);
       
+      // Update admin status to approved
       const { data, error } = await supabase
         .from('admin_users')
         .update({ 
@@ -162,22 +151,31 @@ export default function SuperAdminDashboard() {
           approved_by: 'superadmin'
         })
         .eq('id', adminId)
-        .select();
-
-      console.log('Update result:', { data, error });
+        .select()
+        .single();
 
       if (error) {
         console.error('Error approving admin:', error);
         throw new Error(error.message);
       }
 
+      console.log('Admin approved successfully:', data);
+
       toast({
         title: 'Admin Approved',
         description: 'The admin account has been approved successfully. They can now log in.',
       });
 
-      // Refresh data to show updated lists
-      await loadDashboardData();
+      // Move admin from pending to approved list immediately
+      const approvedAdmin = pendingAdmins.find(admin => admin.id === adminId);
+      if (approvedAdmin) {
+        setPendingAdmins(prev => prev.filter(admin => admin.id !== adminId));
+        setApprovedAdmins(prev => [...prev, {
+          ...approvedAdmin,
+          status: 'approved',
+          approved_at: new Date().toISOString()
+        }]);
+      }
     } catch (error: any) {
       console.error('Error approving admin:', error);
       toast({
@@ -197,6 +195,7 @@ export default function SuperAdminDashboard() {
     try {
       console.log('Rejecting admin:', adminId);
       
+      // Update admin status to rejected
       const { data, error } = await supabase
         .from('admin_users')
         .update({ 
@@ -205,8 +204,6 @@ export default function SuperAdminDashboard() {
         })
         .eq('id', adminId)
         .select();
-
-      console.log('Reject result:', { data, error });
 
       if (error) {
         console.error('Error rejecting admin:', error);
@@ -218,7 +215,7 @@ export default function SuperAdminDashboard() {
         description: 'The admin account has been rejected.',
       });
 
-      // Remove the rejected admin from the pending list immediately
+      // Remove from pending list immediately
       setPendingAdmins(prev => prev.filter(admin => admin.id !== adminId));
     } catch (error: any) {
       console.error('Error rejecting admin:', error);
@@ -243,22 +240,25 @@ export default function SuperAdminDashboard() {
     try {
       console.log('Deleting admin:', adminId);
       
-      // First try to delete from auth.users (this will cascade to admin_users)
-      const { error: authError } = await supabase.auth.admin.deleteUser(adminId);
-      
-      if (authError) {
-        console.log('Auth deletion failed, trying direct database deletion:', authError);
+      // Delete from admin_users table (this will also remove auth if cascade is set up)
+      const { error: dbError } = await supabase
+        .from('admin_users')
+        .delete()
+        .eq('id', adminId);
         
-        // If auth deletion fails, delete directly from admin_users table
-        const { error: dbError } = await supabase
-          .from('admin_users')
-          .delete()
-          .eq('id', adminId);
-          
-        if (dbError) {
-          console.error('Database deletion error:', dbError);
-          throw new Error(dbError.message);
+      if (dbError) {
+        console.error('Database deletion error:', dbError);
+        throw new Error(dbError.message);
+      }
+
+      // Try to delete from auth.users as well using admin API
+      try {
+        const { error: authError } = await supabase.auth.admin.deleteUser(adminId);
+        if (authError) {
+          console.log('Auth deletion failed (may not exist):', authError);
         }
+      } catch (authError) {
+        console.log('Auth deletion failed (may not exist):', authError);
       }
 
       toast({
@@ -266,7 +266,7 @@ export default function SuperAdminDashboard() {
         description: 'The admin account has been permanently deleted.',
       });
 
-      // Remove from the approved list immediately
+      // Remove from approved list immediately
       setApprovedAdmins(prev => prev.filter(admin => admin.id !== adminId));
     } catch (error: any) {
       console.error('Error deleting admin:', error);

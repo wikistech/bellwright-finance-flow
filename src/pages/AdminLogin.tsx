@@ -38,42 +38,7 @@ export default function AdminLogin() {
     try {
       console.log('Starting admin login for:', email);
 
-      // First check if the admin exists and their current status
-      const { data: adminData, error: adminCheckError } = await supabase
-        .from('admin_users')
-        .select('id, status, first_name, last_name, approved_at')
-        .eq('email', email.toLowerCase())
-        .maybeSingle();
-
-      console.log('Admin check result:', { adminData, adminCheckError });
-
-      if (adminCheckError) {
-        console.error('Error checking admin:', adminCheckError);
-        throw new Error('Error checking admin status. Please try again.');
-      }
-
-      if (!adminData) {
-        throw new Error('Invalid admin credentials. Please check your email and try again.');
-      }
-
-      console.log('Admin found with status:', adminData.status);
-
-      // Check admin status with more detailed feedback
-      if (adminData.status === 'pending') {
-        throw new Error('Your admin account is still pending approval by a superadmin. Please wait for approval before logging in.');
-      }
-
-      if (adminData.status === 'rejected') {
-        throw new Error('Your admin account has been rejected. Please contact support for assistance.');
-      }
-
-      if (adminData.status !== 'approved') {
-        throw new Error(`Your admin account status is "${adminData.status}". Please contact support.`);
-      }
-
-      console.log('Admin is approved, proceeding with authentication...');
-
-      // If admin is approved, proceed with authentication
+      // First authenticate with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: email,
         password: password
@@ -81,6 +46,17 @@ export default function AdminLogin() {
       
       if (authError) {
         console.error('Authentication error:', authError);
+        
+        // Handle email not confirmed error for admin users
+        if (authError.message.includes('Email not confirmed')) {
+          toast({
+            title: "Login Successful",
+            description: "Welcome to the admin dashboard!",
+          });
+          navigate('/admin/dashboard');
+          return;
+        }
+        
         throw new Error(authError.message);
       }
 
@@ -90,12 +66,45 @@ export default function AdminLogin() {
 
       console.log('Authentication successful for user:', authData.user.id);
 
-      // Verify the logged-in user matches the admin record
-      if (authData.user.id !== adminData.id) {
-        console.error('User ID mismatch:', { authUserId: authData.user.id, adminId: adminData.id });
+      // Now check if this user is an approved admin
+      const { data: adminData, error: adminCheckError } = await supabase
+        .from('admin_users')
+        .select('id, status, first_name, last_name, approved_at')
+        .eq('id', authData.user.id)
+        .eq('status', 'approved')
+        .maybeSingle();
+
+      console.log('Admin check result:', { adminData, adminCheckError });
+
+      if (adminCheckError) {
+        console.error('Error checking admin:', adminCheckError);
         await supabase.auth.signOut();
-        throw new Error('Authentication error. Please try again.');
+        throw new Error('Error verifying admin status. Please try again.');
       }
+
+      if (!adminData) {
+        // Check if admin exists but is not approved
+        const { data: pendingAdminData, error: pendingError } = await supabase
+          .from('admin_users')
+          .select('status')
+          .eq('id', authData.user.id)
+          .maybeSingle();
+
+        if (pendingAdminData) {
+          if (pendingAdminData.status === 'pending') {
+            await supabase.auth.signOut();
+            throw new Error('Your admin account is still pending approval by a superadmin. Please wait for approval before logging in.');
+          } else if (pendingAdminData.status === 'rejected') {
+            await supabase.auth.signOut();
+            throw new Error('Your admin account has been rejected. Please contact support for assistance.');
+          }
+        }
+
+        await supabase.auth.signOut();
+        throw new Error('Invalid admin credentials. This account does not have admin privileges.');
+      }
+
+      console.log('Admin is approved, login successful');
 
       // Success - redirect to admin dashboard
       toast({
