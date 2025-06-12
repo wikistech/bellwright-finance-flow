@@ -122,7 +122,30 @@ export default function PaymentInfo() {
 
       console.log('User created with ID:', authData.user.id);
 
-      // Save payment information to database with all the new fields
+      // IMPORTANT: Wait for the session to be established
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Get the current session to ensure we're authenticated
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (!sessionData.session) {
+        // If no session, try to sign in
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: registrationData.email,
+          password: registrationData.password
+        });
+        
+        if (signInError) {
+          console.error('Sign in error:', signInError);
+          throw new Error("Failed to authenticate after registration");
+        }
+        
+        if (!signInData.session) {
+          throw new Error("Failed to establish session");
+        }
+      }
+
+      // Now save payment information with authenticated session
       const { error: paymentError } = await supabase
         .from('payment_methods')
         .insert([

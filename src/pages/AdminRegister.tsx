@@ -103,7 +103,7 @@ export default function AdminRegister() {
 
       console.log('User created with ID:', authData.user.id);
       
-      // Insert admin record with pending status - using a direct insert
+      // Insert admin record with pending status using public access
       const { data: adminData, error: adminError } = await supabase
         .from('admin_users')
         .insert({

@@ -35,6 +35,7 @@ export default function SuperAdminDashboard() {
   const [pendingAdmins, setPendingAdmins] = useState<PendingAdmin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [processingAdmin, setProcessingAdmin] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -123,54 +124,71 @@ export default function SuperAdminDashboard() {
   };
 
   const handleApproveAdmin = async (adminId: string) => {
+    if (processingAdmin) return;
+    
+    setProcessingAdmin(adminId);
     try {
       console.log('Approving admin:', adminId);
       
-      const { error } = await supabase
+      // Use the service role or public access to update admin status
+      const { data, error } = await supabase
         .from('admin_users')
         .update({ 
           status: 'approved',
-          approved_at: new Date().toISOString()
+          approved_at: new Date().toISOString(),
+          approved_by: 'superadmin'
         })
-        .eq('id', adminId);
+        .eq('id', adminId)
+        .select();
+
+      console.log('Update result:', { data, error });
 
       if (error) {
         console.error('Error approving admin:', error);
-        throw error;
+        throw new Error(error.message);
       }
 
       toast({
         title: 'Admin Approved',
-        description: 'The admin account has been approved successfully.',
+        description: 'The admin account has been approved successfully. They can now log in.',
       });
 
-      // Reload the pending admins list
-      await loadDashboardData();
+      // Remove the approved admin from the pending list immediately
+      setPendingAdmins(prev => prev.filter(admin => admin.id !== adminId));
     } catch (error: any) {
       console.error('Error approving admin:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to approve admin. Please try again.',
+        description: 'Failed to approve admin: ' + (error.message || 'Unknown error'),
       });
+    } finally {
+      setProcessingAdmin(null);
     }
   };
 
   const handleRejectAdmin = async (adminId: string) => {
+    if (processingAdmin) return;
+    
+    setProcessingAdmin(adminId);
     try {
       console.log('Rejecting admin:', adminId);
       
-      const { error } = await supabase
+      // Use the service role or public access to update admin status
+      const { data, error } = await supabase
         .from('admin_users')
         .update({ 
           status: 'rejected',
           rejected_at: new Date().toISOString()
         })
-        .eq('id', adminId);
+        .eq('id', adminId)
+        .select();
+
+      console.log('Reject result:', { data, error });
 
       if (error) {
         console.error('Error rejecting admin:', error);
-        throw error;
+        throw new Error(error.message);
       }
 
       toast({
@@ -178,15 +196,17 @@ export default function SuperAdminDashboard() {
         description: 'The admin account has been rejected.',
       });
 
-      // Reload the pending admins list
-      await loadDashboardData();
+      // Remove the rejected admin from the pending list immediately
+      setPendingAdmins(prev => prev.filter(admin => admin.id !== adminId));
     } catch (error: any) {
       console.error('Error rejecting admin:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to reject admin. Please try again.',
+        description: 'Failed to reject admin: ' + (error.message || 'Unknown error'),
       });
+    } finally {
+      setProcessingAdmin(null);
     }
   };
   
@@ -338,18 +358,21 @@ export default function SuperAdminDashboard() {
                       <Button
                         size="sm"
                         onClick={() => handleApproveAdmin(admin.id)}
-                        className="bg-green-600 hover:bg-green-700"
+                        disabled={processingAdmin === admin.id}
+                        className="bg-green-600 hover:bg-green-700 disabled:opacity-50"
                       >
                         <CheckCircle className="h-4 w-4 mr-1" />
-                        Approve
+                        {processingAdmin === admin.id ? 'Approving...' : 'Approve'}
                       </Button>
                       <Button
                         size="sm"
                         variant="destructive"
                         onClick={() => handleRejectAdmin(admin.id)}
+                        disabled={processingAdmin === admin.id}
+                        className="disabled:opacity-50"
                       >
                         <XCircle className="h-4 w-4 mr-1" />
-                        Reject
+                        {processingAdmin === admin.id ? 'Rejecting...' : 'Reject'}
                       </Button>
                     </div>
                   </div>
