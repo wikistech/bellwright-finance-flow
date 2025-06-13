@@ -132,7 +132,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             firstName,
             lastName,
-          }
+          },
+          emailRedirectTo: undefined // No email confirmation
         }
       });
       
@@ -189,7 +190,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('An admin with this email already exists.');
       }
       
-      // Sign up the user first
+      // Sign up the user first - no email confirmation
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -198,7 +199,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             firstName,
             lastName,
             role: 'admin'
-          }
+          },
+          emailRedirectTo: undefined // No email confirmation
         }
       });
       
@@ -252,7 +254,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('A superadmin with this email already exists.');
       }
       
-      // Sign up the user first
+      // Sign up the user first - no email confirmation
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -261,7 +263,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             firstName,
             lastName,
             role: 'superadmin'
-          }
+          },
+          emailRedirectTo: undefined // No email confirmation
         }
       });
       

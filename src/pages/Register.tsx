@@ -57,7 +57,7 @@ export default function Register() {
     try {
       console.log('Starting user registration...');
       
-      // Create the user account first
+      // Create the user account without email confirmation
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
@@ -65,7 +65,8 @@ export default function Register() {
           data: {
             first_name: values.firstName,
             last_name: values.lastName,
-          }
+          },
+          emailRedirectTo: undefined // No email confirmation
         }
       });
 

@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -36,18 +37,6 @@ export default function Login() {
     try {
       console.log('Attempting login for:', email);
       
-      // First verify that a user with this email exists in auth.users
-      const { data: authUsers, error: authCheckError } = await supabase.auth.admin.listUsers();
-      
-      if (authCheckError) {
-        console.log('Could not verify user existence, proceeding with login attempt');
-      } else {
-        const userExists = authUsers.users.find(u => u.email === email.toLowerCase());
-        if (!userExists) {
-          throw new Error("No account found with this email address. Please check your email or register for a new account.");
-        }
-      }
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email,
         password: password,
@@ -61,8 +50,6 @@ export default function Login() {
         
         if (error.message.includes('Invalid login credentials')) {
           errorMessage = "Invalid email or password. Please check your credentials and try again.";
-        } else if (error.message.includes('Email not confirmed')) {
-          errorMessage = "Your email address has not been confirmed. Please check your email for a confirmation link.";
         } else if (error.message.includes('Too many requests')) {
           errorMessage = "Too many login attempts. Please wait a moment and try again.";
         }
