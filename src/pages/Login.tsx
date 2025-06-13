@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -36,6 +35,18 @@ export default function Login() {
     
     try {
       console.log('Attempting login for:', email);
+      
+      // First verify that a user with this email exists in auth.users
+      const { data: authUsers, error: authCheckError } = await supabase.auth.admin.listUsers();
+      
+      if (authCheckError) {
+        console.log('Could not verify user existence, proceeding with login attempt');
+      } else {
+        const userExists = authUsers.users.find(u => u.email === email.toLowerCase());
+        if (!userExists) {
+          throw new Error("No account found with this email address. Please check your email or register for a new account.");
+        }
+      }
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email,

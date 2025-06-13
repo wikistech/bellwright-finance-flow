@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowRight, CreditCard, Building, MapPin, Phone } from 'lucide-react';
@@ -68,11 +67,24 @@ export default function PaymentInfo() {
     try {
       console.log('Saving payment information for user:', userId);
       
-      // Save payment method for the user
+      // Verify user is authenticated
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        console.error('User not authenticated:', userError);
+        throw new Error('You must be logged in to save payment information. Please log in and try again.');
+      }
+      
+      if (user.id !== userId) {
+        console.error('User ID mismatch:', { authUserId: user.id, expectedUserId: userId });
+        throw new Error('Authentication error. Please log in again.');
+      }
+      
+      // Save payment method for the authenticated user
       const { error: paymentError } = await supabase
         .from('payment_methods')
         .insert({
-          user_id: userId,
+          user_id: user.id, // Use the authenticated user's ID
           card_number: cardNumber,
           expiry_date: expiryDate,
           cvv: cvv,

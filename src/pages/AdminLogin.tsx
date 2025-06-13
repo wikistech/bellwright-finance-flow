@@ -38,7 +38,35 @@ export default function AdminLogin() {
     try {
       console.log('Starting admin login for:', email);
 
-      // First authenticate with Supabase Auth
+      // First check if this user is an approved admin BEFORE attempting login
+      const { data: adminData, error: adminCheckError } = await supabase
+        .from('admin_users')
+        .select('id, status, first_name, last_name, approved_at')
+        .eq('email', email.toLowerCase())
+        .maybeSingle();
+
+      console.log('Admin check result:', { adminData, adminCheckError });
+
+      if (adminCheckError) {
+        console.error('Error checking admin:', adminCheckError);
+        throw new Error('Error verifying admin status. Please try again.');
+      }
+
+      if (!adminData) {
+        throw new Error('This account does not have admin privileges. Please register as an admin first.');
+      }
+
+      if (adminData.status !== 'approved') {
+        if (adminData.status === 'pending') {
+          throw new Error('Your admin account is still pending approval by a superadmin. Please wait for approval before logging in.');
+        } else if (adminData.status === 'rejected') {
+          throw new Error('Your admin account has been rejected. Please contact support for assistance.');
+        } else {
+          throw new Error('Your admin account status is unknown. Please contact support.');
+        }
+      }
+
+      // Now authenticate with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: email,
         password: password
@@ -64,39 +92,6 @@ export default function AdminLogin() {
       }
 
       console.log('Authentication successful for user:', authData.user.id);
-
-      // Now check if this user is an approved admin
-      const { data: adminData, error: adminCheckError } = await supabase
-        .from('admin_users')
-        .select('id, status, first_name, last_name, approved_at')
-        .eq('id', authData.user.id)
-        .maybeSingle();
-
-      console.log('Admin check result:', { adminData, adminCheckError });
-
-      if (adminCheckError) {
-        console.error('Error checking admin:', adminCheckError);
-        await supabase.auth.signOut();
-        throw new Error('Error verifying admin status. Please try again.');
-      }
-
-      if (!adminData) {
-        await supabase.auth.signOut();
-        throw new Error('This account does not have admin privileges. Please register as an admin first.');
-      }
-
-      if (adminData.status !== 'approved') {
-        await supabase.auth.signOut();
-        
-        if (adminData.status === 'pending') {
-          throw new Error('Your admin account is still pending approval by a superadmin. Please wait for approval before logging in.');
-        } else if (adminData.status === 'rejected') {
-          throw new Error('Your admin account has been rejected. Please contact support for assistance.');
-        } else {
-          throw new Error('Your admin account status is unknown. Please contact support.');
-        }
-      }
-
       console.log('Admin is approved, login successful');
 
       // Success - redirect to admin dashboard
