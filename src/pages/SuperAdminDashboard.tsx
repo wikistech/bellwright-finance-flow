@@ -142,8 +142,8 @@ export default function SuperAdminDashboard() {
     try {
       console.log('Approving admin:', adminId);
       
-      // Update admin status to approved
-      const { error } = await supabase
+      // Update admin status to approved with proper timestamp
+      const { error: updateError } = await supabase
         .from('admin_users')
         .update({ 
           status: 'approved',
@@ -152,12 +152,24 @@ export default function SuperAdminDashboard() {
         })
         .eq('id', adminId);
 
-      if (error) {
-        console.error('Error approving admin:', error);
-        throw new Error(error.message);
+      if (updateError) {
+        console.error('Error updating admin status:', updateError);
+        throw new Error(updateError.message);
       }
 
-      console.log('Admin approved successfully');
+      // Double check the update worked by fetching the updated record
+      const { data: updatedAdmin, error: fetchError } = await supabase
+        .from('admin_users')
+        .select('*')
+        .eq('id', adminId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching updated admin:', fetchError);
+        throw new Error('Failed to verify admin approval');
+      }
+
+      console.log('Admin approval verified:', updatedAdmin);
 
       toast({
         title: 'Admin Approved',
@@ -193,30 +205,23 @@ export default function SuperAdminDashboard() {
     try {
       console.log('Rejecting admin:', adminId);
       
-      // Delete the admin record completely when rejecting
-      const { error } = await supabase
+      // Update admin status to rejected instead of deleting
+      const { error: updateError } = await supabase
         .from('admin_users')
-        .delete()
+        .update({ 
+          status: 'rejected',
+          rejected_at: new Date().toISOString()
+        })
         .eq('id', adminId);
 
-      if (error) {
-        console.error('Error rejecting admin:', error);
-        throw new Error(error.message);
-      }
-
-      // Also try to delete from auth.users
-      try {
-        const { error: authError } = await supabase.auth.admin.deleteUser(adminId);
-        if (authError) {
-          console.log('Auth deletion failed (may not exist):', authError);
-        }
-      } catch (authError) {
-        console.log('Auth deletion failed (may not exist):', authError);
+      if (updateError) {
+        console.error('Error rejecting admin:', updateError);
+        throw new Error(updateError.message);
       }
 
       toast({
         title: 'Admin Rejected',
-        description: 'The admin account has been rejected and deleted.',
+        description: 'The admin account has been rejected.',
       });
 
       // Remove from pending list immediately
@@ -253,16 +258,6 @@ export default function SuperAdminDashboard() {
       if (dbError) {
         console.error('Database deletion error:', dbError);
         throw new Error(dbError.message);
-      }
-
-      // Try to delete from auth.users as well
-      try {
-        const { error: authError } = await supabase.auth.admin.deleteUser(adminId);
-        if (authError) {
-          console.log('Auth deletion failed (may not exist):', authError);
-        }
-      } catch (authError) {
-        console.log('Auth deletion failed (may not exist):', authError);
       }
 
       toast({

@@ -1,77 +1,53 @@
 
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from '@/integrations/supabase/client';
 
-export type PaymentData = {
+export interface PaymentData {
   amount: number;
   cardholderName: string;
-  cardNumber: string; // We'll store a masked version
+  cardNumber: string;
   paymentType: string;
   description?: string;
   status: 'pending' | 'completed' | 'failed';
-};
+}
 
 export const submitPayment = async (paymentData: PaymentData) => {
+  console.log('Submitting payment:', paymentData);
+  
   try {
-    // Mask the card number for security
-    const maskedCardNumber = maskCardNumber(paymentData.cardNumber);
+    // Get the current authenticated user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    // Get the current user
-    const { data: userData } = await supabase.auth.getUser();
-    
-    if (!userData.user) {
-      throw new Error("User must be logged in to submit a payment");
+    if (userError || !user) {
+      console.error('User not authenticated:', userError);
+      throw new Error('You must be logged in to make a payment');
     }
-    
+
+    console.log('Authenticated user:', user.id);
+
     // Insert payment record
     const { data, error } = await supabase
       .from('payments')
       .insert({
-        user_id: userData.user.id,
+        user_id: user.id,
         amount: paymentData.amount,
         cardholder_name: paymentData.cardholderName,
-        card_number: maskedCardNumber,
+        card_number: paymentData.cardNumber,
         payment_type: paymentData.paymentType,
-        description: paymentData.description || null,
-        status: paymentData.status,
-        created_at: new Date().toISOString(),
-      });
-    
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error("Error submitting payment:", error);
-    throw error;
-  }
-};
+        description: paymentData.description || 'Payment',
+        status: paymentData.status
+      })
+      .select()
+      .single();
 
-// Helper to mask card number for security
-function maskCardNumber(cardNumber: string): string {
-  // Remove spaces
-  const cleaned = cardNumber.replace(/\D/g, '');
-  // Keep first 4 and last 4 digits, mask the rest
-  return cleaned.substring(0, 4) + 
-         '*'.repeat(cleaned.length - 8) + 
-         cleaned.substring(cleaned.length - 4);
-}
-
-// Get user's payment methods
-export const getUserPaymentMethods = async () => {
-  try {
-    const { data: userData } = await supabase.auth.getUser();
-    
-    if (!userData.user) {
-      throw new Error("User must be logged in to retrieve payment methods");
+    if (error) {
+      console.error('Payment insert error:', error);
+      throw new Error(`Failed to process payment: ${error.message}`);
     }
-    
-    const { data, error } = await supabase
-      .from('payment_methods')
-      .select('*')
-      .eq('user_id', userData.user.id);
-    
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error("Error retrieving payment methods:", error);
+
+    console.log('Payment processed successfully:', data);
+    return data;
+  } catch (error: any) {
+    console.error('Payment submission error:', error);
     throw error;
   }
 };

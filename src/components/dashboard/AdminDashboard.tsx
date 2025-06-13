@@ -9,6 +9,7 @@ import { PaymentsTable } from "@/components/dashboard/admin/PaymentsTable";
 import { AdminTabsNav } from "@/components/dashboard/admin/AdminTabsNav";
 import { loadUserProfiles, loadLoanApplications, loadPaymentMethods } from "@/components/dashboard/admin/AdminDataService";
 import { handleApproveLoan, handleRejectLoan } from "@/components/dashboard/admin/AdminLoansService";
+import { supabase } from "@/integrations/supabase/client";
 
 interface UserProfile {
   id: string;
@@ -40,10 +41,22 @@ interface PaymentMethod {
   created_at: string;
 }
 
+interface PaymentTransaction {
+  id: string;
+  user_id: string;
+  amount: number;
+  cardholder_name: string;
+  card_number: string;
+  payment_type: string;
+  status: string;
+  created_at: string;
+}
+
 export function AdminDashboard() {
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
   const [loans, setLoans] = useState<LoanApplication[]>([]);
   const [payments, setPayments] = useState<PaymentMethod[]>([]);
+  const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'users' | 'loans' | 'payments'>('users');
   const { toast } = useToast();
@@ -69,6 +82,23 @@ export function AdminDashboard() {
         const paymentsResult = await loadPaymentMethods();
         if (!paymentsResult.error) {
           setPayments(paymentsResult.data);
+        }
+
+        // Load payment transactions
+        try {
+          const { data: transactionsData, error: transactionsError } = await supabase
+            .from('payments')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (transactionsError) {
+            console.error('Error loading transactions:', transactionsError);
+          } else {
+            setTransactions(transactionsData || []);
+            console.log('Loaded transactions:', transactionsData?.length || 0);
+          }
+        } catch (error) {
+          console.error('Error loading payment transactions:', error);
         }
         
       } catch (error: any) {
@@ -108,7 +138,7 @@ export function AdminDashboard() {
       <CardContent>
         {activeTab === 'users' && <UsersTable profiles={profiles} />}
         {activeTab === 'loans' && <LoansTable loans={loans} onApprove={onApprove} onReject={onReject} />}
-        {activeTab === 'payments' && <PaymentsTable payments={payments} />}
+        {activeTab === 'payments' && <PaymentsTable payments={payments} transactions={transactions} />}
       </CardContent>
     </Card>
   );

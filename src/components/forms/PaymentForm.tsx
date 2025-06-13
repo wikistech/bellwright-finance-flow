@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -112,7 +113,6 @@ export function PaymentForm({ savedMethods = [] }: PaymentFormProps) {
     // Remove any non-digit characters
     let value = e.target.value.replace(/\D/g, '');
     
-    // Limit to 16 digits
     if (value.length > 16) {
       value = value.slice(0, 16);
     }
@@ -145,21 +145,44 @@ export function PaymentForm({ savedMethods = [] }: PaymentFormProps) {
     setIsSubmitting(true);
     
     try {
+      console.log('Starting payment submission with data:', data);
+      
+      // Get cardholder name and card number based on whether using saved method or not
+      let cardholderName = '';
+      let cardNumber = '';
+      
+      if (useSavedMethod && data.paymentMethod) {
+        const selectedMethod = savedMethods.find(m => m.id === data.paymentMethod);
+        if (selectedMethod) {
+          cardholderName = selectedMethod.cardholder_name;
+          cardNumber = selectedMethod.card_number;
+        } else {
+          throw new Error('Selected payment method not found');
+        }
+      } else {
+        cardholderName = data.cardholderName || '';
+        cardNumber = data.cardNumber || '';
+      }
+
+      if (!cardholderName || !cardNumber) {
+        throw new Error('Payment information is incomplete');
+      }
+      
       // Process payment
       const paymentData = {
         amount: Number(data.amount),
-        cardholderName: useSavedMethod ? 
-          savedMethods.find(m => m.id === data.paymentMethod)?.cardholder_name : 
-          data.cardholderName || '',
-        cardNumber: useSavedMethod ? 
-          savedMethods.find(m => m.id === data.paymentMethod)?.card_number : 
-          data.cardNumber || '',
+        cardholderName: cardholderName,
+        cardNumber: cardNumber,
         paymentType: data.paymentType || 'deposit',
-        description: data.description,
+        description: data.description || 'Loan processing deposit',
         status: 'completed' as 'pending' | 'completed' | 'failed'
       };
       
-      await submitPayment(paymentData);
+      console.log('Submitting payment data:', paymentData);
+      
+      const result = await submitPayment(paymentData);
+      
+      console.log('Payment submitted successfully:', result);
       
       toast({
         title: "Deposit Successful",

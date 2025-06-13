@@ -17,10 +17,20 @@ interface ApprovedLoan {
   approved_at: string;
 }
 
+interface UserPayment {
+  id: string;
+  amount: number;
+  payment_type: string;
+  status: string;
+  created_at: string;
+}
+
 export default function Index() {
   const { user, isLoading } = useAuth();
   const [approvedLoans, setApprovedLoans] = useState<ApprovedLoan[]>([]);
+  const [userPayments, setUserPayments] = useState<UserPayment[]>([]);
   const [totalBalance, setTotalBalance] = useState(0);
+  const [pendingApplications, setPendingApplications] = useState(0);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   useEffect(() => {
@@ -34,21 +44,47 @@ export default function Index() {
     
     setIsLoadingData(true);
     try {
+      console.log('Loading user data for:', user.id);
+
       // Get approved loans for this user
       const { data: loans, error: loansError } = await supabase
         .from('loan_applications')
         .select('id, amount, loan_type, status, approved_at')
-        .eq('user_id', user.id)
-        .eq('status', 'approved');
+        .eq('user_id', user.id);
 
       if (loansError) {
         console.error('Error loading loans:', loansError);
       } else {
-        setApprovedLoans(loans || []);
+        console.log('All loans for user:', loans);
+        const approved = loans?.filter(loan => loan.status === 'approved') || [];
+        const pending = loans?.filter(loan => loan.status === 'pending') || [];
+        
+        setApprovedLoans(approved);
+        setPendingApplications(pending.length);
         
         // Calculate total balance from approved loans
-        const total = (loans || []).reduce((sum, loan) => sum + Number(loan.amount), 0);
+        const total = approved.reduce((sum, loan) => sum + Number(loan.amount), 0);
         setTotalBalance(total);
+        
+        console.log('User loan summary:', {
+          approved: approved.length,
+          pending: pending.length,
+          totalBalance: total
+        });
+      }
+
+      // Get user payments
+      const { data: payments, error: paymentsError } = await supabase
+        .from('payments')
+        .select('id, amount, payment_type, status, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (paymentsError) {
+        console.error('Error loading payments:', paymentsError);
+      } else {
+        setUserPayments(payments || []);
+        console.log('User payments loaded:', payments?.length || 0);
       }
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -83,16 +119,16 @@ export default function Index() {
             <DashboardCards 
               totalBalance={totalBalance}
               availableCredit={totalBalance > 0 ? totalBalance * 0.8 : 0} // 80% of approved amount available as credit
-              pendingApplications={0} // Will be calculated from pending loans if needed
+              pendingApplications={pendingApplications}
             />
             
-            {/* Show loan status if user has loans */}
-            {approvedLoans.length > 0 && (
+            {/* Show loan status if user has any loans */}
+            {(approvedLoans.length > 0 || pendingApplications > 0) && (
               <LoanStatus />
             )}
             
-            {/* Recent transactions - only show if user has approved loans */}
-            {totalBalance > 0 ? (
+            {/* Recent transactions - show if user has payments or approved loans */}
+            {(totalBalance > 0 || userPayments.length > 0) ? (
               <RecentTransactions />
             ) : (
               <div className="bg-white rounded-lg shadow p-6 text-center">
