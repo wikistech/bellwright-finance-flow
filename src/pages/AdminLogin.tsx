@@ -47,17 +47,16 @@ export default function AdminLogin() {
       if (authError) {
         console.error('Authentication error:', authError);
         
-        // Handle email not confirmed error for admin users
-        if (authError.message.includes('Email not confirmed')) {
-          toast({
-            title: "Login Successful",
-            description: "Welcome to the admin dashboard!",
-          });
-          navigate('/admin/dashboard');
-          return;
+        // Provide specific error messages
+        let errorMessage = "Invalid email or password.";
+        
+        if (authError.message.includes('Invalid login credentials')) {
+          errorMessage = "Invalid email or password. Please check your credentials and try again.";
+        } else if (authError.message.includes('Email not confirmed')) {
+          errorMessage = "Your email address has not been confirmed. Please check your email for a confirmation link.";
         }
         
-        throw new Error(authError.message);
+        throw new Error(errorMessage);
       }
 
       if (!authData.user) {
@@ -71,7 +70,6 @@ export default function AdminLogin() {
         .from('admin_users')
         .select('id, status, first_name, last_name, approved_at')
         .eq('id', authData.user.id)
-        .eq('status', 'approved')
         .maybeSingle();
 
       console.log('Admin check result:', { adminData, adminCheckError });
@@ -83,25 +81,20 @@ export default function AdminLogin() {
       }
 
       if (!adminData) {
-        // Check if admin exists but is not approved
-        const { data: pendingAdminData, error: pendingError } = await supabase
-          .from('admin_users')
-          .select('status')
-          .eq('id', authData.user.id)
-          .maybeSingle();
-
-        if (pendingAdminData) {
-          if (pendingAdminData.status === 'pending') {
-            await supabase.auth.signOut();
-            throw new Error('Your admin account is still pending approval by a superadmin. Please wait for approval before logging in.');
-          } else if (pendingAdminData.status === 'rejected') {
-            await supabase.auth.signOut();
-            throw new Error('Your admin account has been rejected. Please contact support for assistance.');
-          }
-        }
-
         await supabase.auth.signOut();
-        throw new Error('Invalid admin credentials. This account does not have admin privileges.');
+        throw new Error('This account does not have admin privileges. Please register as an admin first.');
+      }
+
+      if (adminData.status !== 'approved') {
+        await supabase.auth.signOut();
+        
+        if (adminData.status === 'pending') {
+          throw new Error('Your admin account is still pending approval by a superadmin. Please wait for approval before logging in.');
+        } else if (adminData.status === 'rejected') {
+          throw new Error('Your admin account has been rejected. Please contact support for assistance.');
+        } else {
+          throw new Error('Your admin account status is unknown. Please contact support.');
+        }
       }
 
       console.log('Admin is approved, login successful');

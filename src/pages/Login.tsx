@@ -45,74 +45,34 @@ export default function Login() {
       if (error) {
         console.error('Login error:', error);
         
-        // Handle email not confirmed error
-        if (error.message.includes('Email not confirmed')) {
-          // Auto-confirm email for faster development
-          try {
-            // First check if user exists
-            const { data: userData, error: userError } = await supabase.auth.signInWithPassword({
-              email: email,
-              password: password,
-            });
-            
-            if (userError && userError.message.includes('Email not confirmed')) {
-              toast({
-                title: "Account Created",
-                description: "Your account was created successfully. Logging you in...",
-              });
-              
-              // Force sign in by updating the user's email confirmation
-              const { error: updateError } = await supabase.auth.updateUser({
-                email: email
-              });
-              
-              if (!updateError) {
-                // Try login again
-                const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
-                  email: email,
-                  password: password,
-                });
-                
-                if (!retryError && retryData.user) {
-                  toast({
-                    title: "Login Successful",
-                    description: "Welcome back!",
-                  });
-                  window.location.href = '/dashboard';
-                  return;
-                }
-              }
-            }
-          } catch (confirmError) {
-            console.error('Email confirmation error:', confirmError);
-          }
-          
-          toast({
-            title: "Login Successful", 
-            description: "Welcome! Your account is now active.",
-          });
-          
-          // Force redirect to dashboard
-          window.location.href = '/dashboard';
-          return;
+        // Provide specific error messages for better user experience
+        let errorMessage = "Invalid email or password.";
+        
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = "Invalid email or password. Please check your credentials and try again.";
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = "Your email address has not been confirmed. Please check your email for a confirmation link.";
+        } else if (error.message.includes('Too many requests')) {
+          errorMessage = "Too many login attempts. Please wait a moment and try again.";
         }
         
-        throw new Error(error.message);
+        throw new Error(errorMessage);
       }
       
       if (data.user) {
+        console.log('Login successful for user:', data.user.id);
         toast({
           title: "Login Successful",
           description: "Welcome back!",
         });
-        window.location.href = '/dashboard';
+        // Navigation will be handled by the AuthContext
       }
     } catch (error: any) {
       console.error('Login error:', error);
       toast({
         variant: "destructive",
         title: "Login Failed",
-        description: error.message || "Invalid email or password.",
+        description: error.message || "An error occurred during login.",
       });
     } finally {
       setIsLoading(false);

@@ -20,7 +20,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { supabase } from '@/integrations/supabase/client';
 
-// Validation schema
 const registerSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
@@ -54,98 +53,65 @@ export default function AdminRegister() {
     setIsLoading(true);
     
     try {
-      console.log('Starting admin registration for:', values.email);
+      console.log('Starting admin registration process...');
       
-      // Check if admin already exists
-      const { data: existingAdmin, error: checkError } = await supabase
-        .from('admin_users')
-        .select('email')
-        .eq('email', values.email.toLowerCase())
-        .maybeSingle();
-      
-      if (checkError) {
-        console.error('Error checking existing admin:', checkError);
-      }
-      
-      if (existingAdmin) {
-        toast({
-          variant: "destructive",
-          title: "Registration Failed",
-          description: "An admin account with this email already exists.",
-        });
-        setIsLoading(false);
-        return;
-      }
-      
-      // Sign up the user with Supabase Auth
+      // First create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
         options: {
           data: {
             first_name: values.firstName,
-            last_name: values.lastName,
-            role: 'admin'
+            last_name: values.lastName
           }
         }
       });
       
-      console.log('Auth signup result:', { authData, authError });
-      
       if (authError) {
-        console.error('Auth error:', authError);
+        console.error('Auth signup error:', authError);
         throw new Error(authError.message);
       }
       
-      if (!authData.user) {
-        throw new Error("Failed to create user account");
+      if (!authData?.user) {
+        throw new Error('Failed to create user account');
       }
-
-      console.log('User created with ID:', authData.user.id);
       
-      // Insert admin record with pending status using public access
-      const { data: adminData, error: adminError } = await supabase
+      console.log('Auth user created:', authData.user.id);
+      
+      // Now create admin record with the same ID
+      const { error: adminError } = await supabase
         .from('admin_users')
         .insert({
-          id: authData.user.id,
-          email: values.email.toLowerCase(),
+          id: authData.user.id, // Use the same ID as the auth user
+          email: values.email,
           first_name: values.firstName,
           last_name: values.lastName,
-          status: 'pending',
-          created_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-      
-      console.log('Admin record insert result:', { adminData, adminError });
+          status: 'pending'
+        });
       
       if (adminError) {
-        console.error('Admin record error:', adminError);
-        // Even if admin record fails, we should still sign out the user
-        await supabase.auth.signOut();
-        throw new Error("Failed to create admin record: " + adminError.message);
+        console.error('Admin record creation error:', adminError);
+        // If admin record creation fails, clean up the auth user
+        await supabase.auth.admin.deleteUser(authData.user.id);
+        throw new Error('Failed to create admin record: ' + adminError.message);
       }
-
-      console.log('Admin record created successfully:', adminData);
-
-      // Sign out the user immediately after registration since they need approval first
-      await supabase.auth.signOut();
       
-      console.log('Admin registration completed successfully');
+      console.log('Admin record created successfully');
       
       toast({
-        title: "Registration Successful",
-        description: "Your admin account has been created and is pending approval by a superadmin. You will be able to login once approved.",
+        title: "Admin Registration Submitted",
+        description: "Your admin account has been submitted for approval. Please wait for a superadmin to approve your request.",
       });
       
       // Redirect to admin login page
       navigate('/admin/login');
+      
     } catch (error: any) {
-      console.error('Registration error:', error);
+      console.error('Admin registration error:', error);
       toast({
         variant: "destructive",
         title: "Registration Failed",
-        description: error.message || "An error occurred during registration.",
+        description: error.message || "Failed to register admin account.",
       });
     } finally {
       setIsLoading(false);
@@ -174,7 +140,7 @@ export default function AdminRegister() {
               Admin Registration
             </CardTitle>
             <CardDescription className="text-center">
-              Create a new administrator account
+              Register for an admin account (requires approval)
             </CardDescription>
           </CardHeader>
           
@@ -267,7 +233,7 @@ export default function AdminRegister() {
                   className="w-full bg-finance-primary hover:bg-finance-secondary" 
                   disabled={isLoading}
                 >
-                  {isLoading ? "Creating account..." : "Create Admin Account"}
+                  {isLoading ? "Submitting Registration..." : "Register Admin Account"}
                 </Button>
               </form>
             </Form>
@@ -277,7 +243,7 @@ export default function AdminRegister() {
             <p className="text-sm text-gray-600">
               Already have an admin account?{" "}
               <Link to="/admin/login" className="text-finance-primary hover:underline">
-                Admin Login
+                Sign in here
               </Link>
             </p>
             <div className="text-xs text-gray-500 text-center border-t pt-4 mt-2">

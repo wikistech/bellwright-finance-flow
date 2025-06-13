@@ -18,7 +18,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useRegistration } from '@/contexts/RegistrationContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const registerSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
@@ -36,9 +36,9 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { updateRegistrationData } = useRegistration();
   
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -52,22 +52,49 @@ export default function Register() {
   });
   
   const onSubmit = async (values: RegisterFormValues) => {
+    setIsLoading(true);
+    
     try {
-      // Store registration data in context
-      updateRegistrationData({
-        firstName: values.firstName,
-        lastName: values.lastName,
+      console.log('Starting user registration...');
+      
+      // Create the user account first
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: values.email,
-        password: values.password
+        password: values.password,
+        options: {
+          data: {
+            first_name: values.firstName,
+            last_name: values.lastName,
+          }
+        }
       });
+
+      if (authError) {
+        console.error('Auth error:', authError);
+        throw new Error(authError.message);
+      }
+
+      if (!authData.user) {
+        throw new Error('Failed to create user account');
+      }
+
+      console.log('User account created successfully:', authData.user.id);
       
       toast({
-        title: "Registration Data Saved",
-        description: "Please complete your payment information to continue.",
+        title: "Account Created Successfully!",
+        description: "Please continue to add your payment information.",
       });
       
-      // Redirect to payment info page
-      navigate('/payment-info');
+      // Navigate to payment info page with user data
+      navigate('/payment-info', { 
+        state: { 
+          userId: authData.user.id,
+          userEmail: values.email,
+          firstName: values.firstName,
+          lastName: values.lastName
+        } 
+      });
+      
     } catch (error: any) {
       console.error('Registration error:', error);
       toast({
@@ -75,6 +102,8 @@ export default function Register() {
         title: "Registration Failed",
         description: error.message || "An error occurred during registration.",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -212,8 +241,9 @@ export default function Register() {
                 <Button 
                   type="submit" 
                   className="w-full bg-finance-primary hover:bg-finance-secondary"
+                  disabled={isLoading}
                 >
-                  Continue to Payment Information
+                  {isLoading ? "Creating Account..." : "Continue to Payment Information"}
                 </Button>
               </form>
             </Form>

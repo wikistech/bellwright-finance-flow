@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowRight, CreditCard, Building, MapPin, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,6 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useRegistration } from '@/contexts/RegistrationContext';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function PaymentInfo() {
@@ -33,48 +33,46 @@ export default function PaymentInfo() {
   
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { registrationData, resetRegistrationData } = useRegistration();
+  const location = useLocation();
+  
+  // Get user data from navigation state
+  const { userId, userEmail, firstName, lastName } = location.state || {};
+
+  useEffect(() => {
+    // If no user data, redirect to register
+    if (!userId) {
+      toast({
+        variant: "destructive",
+        title: "Registration Required",
+        description: "Please complete registration first.",
+      });
+      navigate('/register');
+    }
+  }, [userId, navigate, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!userId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "User information missing. Please register again.",
+      });
+      navigate('/register');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      console.log('Starting complete registration process...');
+      console.log('Saving payment information for user:', userId);
       
-      if (!registrationData) {
-        throw new Error('No registration data found. Please start from the registration page.');
-      }
-
-      // Create the user account with email confirmation disabled
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: registrationData.email,
-        password: registrationData.password,
-        options: {
-          data: {
-            firstName: registrationData.firstName,
-            lastName: registrationData.lastName,
-          },
-          emailRedirectTo: `${window.location.origin}/login`
-        }
-      });
-
-      if (authError) {
-        console.error('Auth error:', authError);
-        throw new Error(authError.message);
-      }
-
-      if (!authData.user) {
-        throw new Error('Failed to create user account');
-      }
-
-      console.log('User account created:', authData.user.id);
-
-      // Save payment method for the created user
+      // Save payment method for the user
       const { error: paymentError } = await supabase
         .from('payment_methods')
         .insert({
-          user_id: authData.user.id,
+          user_id: userId,
           card_number: cardNumber,
           expiry_date: expiryDate,
           cvv: cvv,
@@ -93,32 +91,25 @@ export default function PaymentInfo() {
 
       if (paymentError) {
         console.error('Payment method error:', paymentError);
-        toast({
-          variant: "destructive",
-          title: "Payment Information Error",
-          description: "User account created but payment information could not be saved. You can add it later in settings.",
-        });
-      } else {
-        console.log('Payment method saved successfully');
+        throw new Error('Failed to save payment information: ' + paymentError.message);
       }
 
-      // Clear registration data
-      resetRegistrationData();
+      console.log('Payment method saved successfully');
 
       toast({
         title: "Registration Complete!",
-        description: "Your account has been created successfully. You can now log in.",
+        description: "Your account and payment information have been saved successfully. You can now log in.",
       });
 
       // Redirect to login
       navigate('/login');
 
     } catch (error: any) {
-      console.error('Registration error:', error);
+      console.error('Payment info error:', error);
       toast({
         variant: "destructive",
-        title: "Registration Failed",
-        description: error.message || "An error occurred during registration.",
+        title: "Payment Information Error",
+        description: error.message || "Failed to save payment information.",
       });
     } finally {
       setIsLoading(false);
@@ -131,6 +122,9 @@ export default function PaymentInfo() {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-finance-primary">Complete Your Registration</h1>
           <p className="text-gray-600 mt-2">Add your payment and contact information</p>
+          {userEmail && (
+            <p className="text-sm text-gray-500 mt-1">Account: {userEmail}</p>
+          )}
         </div>
         
         <Card className="border-0 shadow-lg">
@@ -327,7 +321,7 @@ export default function PaymentInfo() {
                 className="w-full bg-finance-primary hover:bg-finance-secondary" 
                 disabled={isLoading}
               >
-                {isLoading ? "Completing Registration..." : "Complete Registration"}
+                {isLoading ? "Saving Information..." : "Complete Registration"}
               </Button>
             </form>
           </CardContent>
