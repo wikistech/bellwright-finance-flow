@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,66 +52,56 @@ export default function SuperAdminDashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is superadmin via session storage
     const isSuperAdmin = sessionStorage.getItem('superadmin_authenticated') === 'true';
-    
     if (!isSuperAdmin) {
       navigate('/superadmin/login');
       return;
     }
-    
     loadDashboardData();
   }, [navigate]);
-  
+
   const loadDashboardData = async () => {
     setIsLoading(true);
     console.log('Loading SuperAdmin dashboard data...');
-    
     try {
       // Get user count from payment_methods table
       const { count: userCountData, error: userError } = await supabase
         .from('payment_methods')
         .select('user_id', { count: 'exact', head: true });
-      
+
       if (!userError) {
         setUserCount(userCountData || 0);
-        console.log('User count loaded:', userCountData);
       }
-      
+
       // Get loan counts
       const { data: loanData, error: loanError } = await supabase
         .from('loan_applications')
         .select('status');
-      
+
       if (!loanError && loanData) {
         setLoanCount(loanData.length);
         setPendingLoans(loanData.filter(loan => loan.status === 'pending').length);
-        console.log('Loan data loaded:', { total: loanData.length, pending: loanData.filter(loan => loan.status === 'pending').length });
       }
 
-      // Get pending admin registrations
+      // Get pending admins - only those still pending!
       const { data: pendingAdminData, error: pendingAdminError } = await supabase
         .from('admin_users')
         .select('id, email, first_name, last_name, status, created_at')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      if (!pendingAdminError) {
-        setPendingAdmins(pendingAdminData || []);
-        console.log('Pending admins loaded:', pendingAdminData?.length || 0);
-      }
+      setPendingAdmins(pendingAdminData || []);
 
-      // Get approved admin accounts
+      // Get approved admins
       const { data: approvedAdminData, error: approvedAdminError } = await supabase
         .from('admin_users')
         .select('id, email, first_name, last_name, status, approved_at')
         .eq('status', 'approved')
         .order('approved_at', { ascending: false });
 
-      if (!approvedAdminError) {
-        setApprovedAdmins(approvedAdminData || []);
-        console.log('Approved admins loaded:', approvedAdminData?.length || 0);
-      }
+      setApprovedAdmins(approvedAdminData || []);
+
+      // No need to show rejected — just don't display them at all
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       toast({
@@ -137,15 +126,12 @@ export default function SuperAdminDashboard() {
 
   const handleApproveAdmin = async (adminId: string) => {
     if (processingAdmin) return;
-    
     setProcessingAdmin(adminId);
     try {
-      console.log('Approving admin:', adminId);
-      
-      // Update admin status to approved with proper timestamp
+      // Update admin status to approved and set approved_at
       const { error: updateError } = await supabase
         .from('admin_users')
-        .update({ 
+        .update({
           status: 'approved',
           approved_at: new Date().toISOString(),
           approved_by: 'superadmin'
@@ -153,41 +139,17 @@ export default function SuperAdminDashboard() {
         .eq('id', adminId);
 
       if (updateError) {
-        console.error('Error updating admin status:', updateError);
         throw new Error(updateError.message);
       }
 
-      // Double check the update worked by fetching the updated record
-      const { data: updatedAdmin, error: fetchError } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('id', adminId)
-        .single();
-
-      if (fetchError) {
-        console.error('Error fetching updated admin:', fetchError);
-        throw new Error('Failed to verify admin approval');
-      }
-
-      console.log('Admin approval verified:', updatedAdmin);
+      // After approving, reload list from DB to ensure current state
+      await loadDashboardData();
 
       toast({
         title: 'Admin Approved',
         description: 'The admin account has been approved successfully. They can now log in.',
       });
-
-      // Move admin from pending to approved list immediately
-      const approvedAdmin = pendingAdmins.find(admin => admin.id === adminId);
-      if (approvedAdmin) {
-        setPendingAdmins(prev => prev.filter(admin => admin.id !== adminId));
-        setApprovedAdmins(prev => [...prev, {
-          ...approvedAdmin,
-          status: 'approved',
-          approved_at: new Date().toISOString()
-        }]);
-      }
     } catch (error: any) {
-      console.error('Error approving admin:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -200,34 +162,29 @@ export default function SuperAdminDashboard() {
 
   const handleRejectAdmin = async (adminId: string) => {
     if (processingAdmin) return;
-    
     setProcessingAdmin(adminId);
     try {
-      console.log('Rejecting admin:', adminId);
-      
-      // Update admin status to rejected instead of deleting
+      // Update admin status to rejected and set rejected_at
       const { error: updateError } = await supabase
         .from('admin_users')
-        .update({ 
+        .update({
           status: 'rejected',
           rejected_at: new Date().toISOString()
         })
         .eq('id', adminId);
 
       if (updateError) {
-        console.error('Error rejecting admin:', updateError);
         throw new Error(updateError.message);
       }
+
+      // After rejecting, reload list from DB to ensure current state
+      await loadDashboardData();
 
       toast({
         title: 'Admin Rejected',
         description: 'The admin account has been rejected.',
       });
-
-      // Remove from pending list immediately
-      setPendingAdmins(prev => prev.filter(admin => admin.id !== adminId));
     } catch (error: any) {
-      console.error('Error rejecting admin:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -240,35 +197,27 @@ export default function SuperAdminDashboard() {
 
   const handleDeleteAdmin = async (adminId: string) => {
     if (deletingAdmin) return;
-    
     if (!confirm('Are you sure you want to permanently delete this admin account? This action cannot be undone.')) {
       return;
     }
-    
     setDeletingAdmin(adminId);
     try {
-      console.log('Deleting admin:', adminId);
-      
-      // Delete from admin_users table
       const { error: dbError } = await supabase
         .from('admin_users')
         .delete()
         .eq('id', adminId);
-        
+
       if (dbError) {
-        console.error('Database deletion error:', dbError);
         throw new Error(dbError.message);
       }
+
+      await loadDashboardData();
 
       toast({
         title: 'Admin Deleted',
         description: 'The admin account has been permanently deleted.',
       });
-
-      // Remove from approved list immediately
-      setApprovedAdmins(prev => prev.filter(admin => admin.id !== adminId));
     } catch (error: any) {
-      console.error('Error deleting admin:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -278,7 +227,7 @@ export default function SuperAdminDashboard() {
       setDeletingAdmin(null);
     }
   };
-  
+
   const handleSignOut = async () => {
     try {
       sessionStorage.removeItem('superadmin_authenticated');
