@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,7 +22,6 @@ import Referrals from "./pages/Referrals";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import AdminLogin from "./pages/AdminLogin";
-import AdminRegister from "./pages/AdminRegister";
 import SuperAdminLogin from "./pages/SuperAdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
@@ -50,7 +48,6 @@ const App = () => (
               
               {/* Admin Auth Routes (public) */}
               <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/admin/register" element={<AdminRegister />} />
               
               {/* SuperAdmin Auth Routes (public) */}
               <Route path="/superadmin/login" element={<SuperAdminLogin />} />
