@@ -15,44 +15,15 @@ export default function AdminDashboard() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Check if user is admin, redirect if not
   useEffect(() => {
-    const checkAdmin = async () => {
-      try {
-        const { data: userData } = await supabase.auth.getUser();
-        
-        if (!userData.user) {
-          navigate('/admin');
-          return;
-        }
-        
-        const { data: adminData, error } = await supabase
-          .from('admin_users')
-          .select('*')
-          .eq('id', userData.user.id)
-          .single();
-        
-        if (error || !adminData) {
-          toast({
-            variant: 'destructive',
-            title: 'Access Denied',
-            description: 'You do not have admin privileges.',
-          });
-          navigate('/');
-          return;
-        }
-        
-        // Load dashboard data
-        loadDashboardData();
-      } catch (error) {
-        console.error('Admin check error:', error);
-        navigate('/admin');
-      }
-    };
-    
-    checkAdmin();
-  }, [navigate, toast]);
-  
+    // Only allow access if authenticated as admin.
+    if (sessionStorage.getItem('admin_authenticated') !== 'true') {
+      navigate('/admin/login', { replace: true });
+      return;
+    }
+    loadDashboardData();
+  }, [navigate]);
+
   const loadDashboardData = async () => {
     setIsLoading(true);
     try {
@@ -80,23 +51,14 @@ export default function AdminDashboard() {
       setIsLoading(false);
     }
   };
-  
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      toast({
-        title: 'Signed Out',
-        description: 'You have been signed out successfully.',
-      });
-      navigate('/admin');
-    } catch (error) {
-      console.error('Sign out error:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Sign Out Failed',
-        description: 'Failed to sign out. Please try again.',
-      });
-    }
+
+  const handleSignOut = () => {
+    sessionStorage.removeItem('admin_authenticated');
+    toast({
+      title: 'Signed Out',
+      description: 'You have been signed out successfully.',
+    });
+    navigate('/admin/login', { replace: true });
   };
   
   return (

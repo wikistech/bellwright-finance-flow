@@ -12,12 +12,8 @@ import {
   CreditCard, 
   Home, 
   Shield,
-  CheckCircle,
-  XCircle,
+  UserCheck,
   Clock,
-  RefreshCw,
-  Trash2,
-  UserCheck
 } from 'lucide-react';
 
 interface PendingAdmin {
@@ -131,194 +127,6 @@ export default function SuperAdminDashboard() {
       title: "Data Refreshed",
       description: "Dashboard data has been updated.",
     });
-  };
-
-  const handleApproveAdmin = async (adminId: string) => {
-    if (processingAdmin) return;
-    setProcessingAdmin(adminId);
-    console.log('Approving admin:', adminId);
-    
-    try {
-      // Update admin status to approved
-      const { data: updateData, error: updateError } = await supabase
-        .from('admin_users')
-        .update({
-          status: 'approved',
-          approved_at: new Date().toISOString(),
-          // approved_by: 'superadmin' // Removed this line as 'superadmin' is not a UUID
-        })
-        .eq('id', adminId)
-        .select();
-
-      if (updateError) {
-        console.error('Error updating admin status to approved:', updateError);
-        toast({
-          variant: 'destructive',
-          title: 'Approval Error',
-          description: `Failed to update admin status: ${updateError.message}`,
-        });
-        setProcessingAdmin(null);
-        return; 
-      }
-
-      console.log('Admin approval update result (from DB update call):', updateData);
-
-      if (!updateData || updateData.length === 0) {
-        console.error('Admin approval: No data returned from update, or update failed to find the record.');
-        toast({
-          variant: 'destructive',
-          title: 'Approval Error',
-          description: 'Admin record not found or update failed to return data.',
-        });
-        setProcessingAdmin(null);
-        return;
-      }
-      
-      const updatedAdmin = updateData[0];
-      console.log('Status after attempted approval (from updateData):', updatedAdmin?.status);
-
-
-      // Verify the update by checking the current status from a fresh select
-      const { data: verifyData, error: verifyError } = await supabase
-        .from('admin_users')
-        .select('id, status, approved_at')
-        .eq('id', adminId)
-        .single();
-
-      if (verifyError) {
-        console.error('Error verifying admin status after approval:', verifyError);
-      } else {
-        console.log('Verified admin status after approval (from verification select):', verifyData);
-      }
-
-      await loadDashboardData();
-
-      toast({
-        title: 'Admin Approved',
-        description: 'The admin account has been approved successfully. They can now log in.',
-      });
-    } catch (error: any) {
-      console.error('Error approving admin:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to approve admin: ' + (error.message || 'Unknown error'),
-      });
-    } finally {
-      setProcessingAdmin(null);
-    }
-  };
-
-  const handleRejectAdmin = async (adminId: string) => {
-    if (processingAdmin) return;
-    setProcessingAdmin(adminId);
-    console.log('Rejecting admin:', adminId);
-    
-    try {
-      // Update admin status to rejected
-      const { data: updateData, error: updateError } = await supabase
-        .from('admin_users')
-        .update({
-          status: 'rejected',
-          rejected_at: new Date().toISOString()
-        })
-        .eq('id', adminId)
-        .select();
-
-      if (updateError) {
-        console.error('Error updating admin status to rejected:', updateError);
-        toast({
-          variant: 'destructive',
-          title: 'Rejection Error',
-          description: `Failed to update admin status: ${updateError.message}`,
-        });
-        setProcessingAdmin(null);
-        return;
-      }
-
-      console.log('Admin rejection update result (from DB update call):', updateData);
-
-      if (!updateData || updateData.length === 0) {
-        console.error('Admin rejection: No data returned from update, or update failed to find the record.');
-        toast({
-          variant: 'destructive',
-          title: 'Rejection Error',
-          description: 'Admin record not found or update failed to return data.',
-        });
-        setProcessingAdmin(null);
-        return;
-      }
-
-      const updatedAdmin = updateData[0];
-      console.log('Status after attempted rejection (from updateData):', updatedAdmin?.status);
-
-      // Verify the update by checking the current status from a fresh select
-      const { data: verifyData, error: verifyError } = await supabase
-        .from('admin_users')
-        .select('id, status, rejected_at')
-        .eq('id', adminId)
-        .single();
-
-      if (verifyError) {
-        console.error('Error verifying admin status after rejection:', verifyError);
-      } else {
-        console.log('Verified admin status after rejection (from verification select):', verifyData);
-      }
-
-      await loadDashboardData();
-
-      toast({
-        title: 'Admin Rejected',
-        description: 'The admin account has been rejected.',
-      });
-    } catch (error: any) {
-      console.error('Error rejecting admin:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to reject admin: ' + (error.message || 'Unknown error'),
-      });
-    } finally {
-      setProcessingAdmin(null);
-    }
-  };
-
-  const handleDeleteAdmin = async (adminId: string) => {
-    if (deletingAdmin) return;
-    if (!confirm('Are you sure you want to permanently delete this admin account? This action cannot be undone.')) {
-      return;
-    }
-    setDeletingAdmin(adminId);
-    console.log('Deleting admin:', adminId);
-    
-    try {
-      const { error: dbError } = await supabase
-        .from('admin_users')
-        .delete()
-        .eq('id', adminId);
-
-      if (dbError) {
-        console.error('Error deleting admin:', dbError);
-        throw new Error(dbError.message);
-      }
-
-      console.log('Admin deleted successfully');
-      await loadDashboardData();
-
-      toast({
-        title: 'Admin Deleted',
-        description: 'The admin account has been permanently deleted.',
-      });
-    } catch (error: any) {
-      console.error('Error deleting admin:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to delete admin: ' + (error.message || 'Unknown error'),
-      });
-    } finally {
-      setDeletingAdmin(null);
-    }
   };
 
   const handleSignOut = async () => {
@@ -449,14 +257,13 @@ export default function SuperAdminDashboard() {
           </Card>
         </div>
 
-        {/* Pending Admin Registrations Section */}
+        {/* Pending Admin Registrations Section - now just a read-only list */}
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="p-6">
             <h3 className="text-lg font-medium mb-4 flex items-center">
               <Clock className="h-5 w-5 mr-2 text-amber-500" />
               Pending Admin Registrations ({pendingAdmins.length})
             </h3>
-            
             {isLoading && pendingAdmins.length === 0 ? (
               <div className="text-center py-4">Loading pending admins...</div>
             ) : !isLoading && pendingAdmins.length === 0 ? (
@@ -477,32 +284,10 @@ export default function SuperAdminDashboard() {
                             Registered: {formatDate(admin.created_at)}
                           </p>
                         </div>
-                        <Badge variant="outline" className="text-amber-600 bg-amber-50">
-                          <Clock className="h-3 w-3 mr-1" />
-                          Pending
-                        </Badge>
+                        <span className="inline-flex mt-2 sm:mt-0">
+                          <span className="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded-full">Pending</span>
+                        </span>
                       </div>
-                    </div>
-                    <div className="flex space-x-2 w-full sm:w-auto">
-                      <Button
-                        size="sm"
-                        onClick={() => handleApproveAdmin(admin.id)}
-                        disabled={processingAdmin === admin.id || isLoading}
-                        className="bg-green-600 hover:bg-green-700 disabled:opacity-50 flex-grow sm:flex-grow-0"
-                      >
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        {processingAdmin === admin.id && !isLoading ? 'Approving...' : 'Approve'}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleRejectAdmin(admin.id)}
-                        disabled={processingAdmin === admin.id || isLoading}
-                        className="disabled:opacity-50 flex-grow sm:flex-grow-0"
-                      >
-                        <XCircle className="h-4 w-4 mr-1" />
-                        {processingAdmin === admin.id && !isLoading ? 'Rejecting...' : 'Reject'}
-                      </Button>
                     </div>
                   </div>
                 ))}
@@ -511,14 +296,13 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
 
-        {/* Approved Admins Management Section */}
+        {/* Approved Admins Management Section - now read-only */}
         <div className="bg-white rounded-lg shadow">
           <div className="p-6">
             <h3 className="text-lg font-medium mb-4 flex items-center">
               <UserCheck className="h-5 w-5 mr-2 text-green-500" />
               Approved Admin Accounts ({approvedAdmins.length})
             </h3>
-            
             {isLoading && approvedAdmins.length === 0 ? (
               <div className="text-center py-4">Loading approved admins...</div>
             ) : !isLoading && approvedAdmins.length === 0 ? (
@@ -539,23 +323,10 @@ export default function SuperAdminDashboard() {
                             Approved: {formatDate(admin.approved_at)}
                           </p>
                         </div>
-                        <Badge variant="outline" className="text-green-600 bg-green-50">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Approved
-                        </Badge>
+                        <span className="inline-flex mt-2 sm:mt-0">
+                          <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">Approved</span>
+                        </span>
                       </div>
-                    </div>
-                    <div className="flex space-x-2 w-full sm:w-auto">
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDeleteAdmin(admin.id)}
-                        disabled={deletingAdmin === admin.id || isLoading}
-                        className="disabled:opacity-50 flex-grow sm:flex-grow-0"
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        {deletingAdmin === admin.id && !isLoading ? 'Deleting...' : 'Delete'}
-                      </Button>
                     </div>
                   </div>
                 ))}

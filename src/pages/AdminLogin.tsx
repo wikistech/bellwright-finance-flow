@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Lock, User } from 'lucide-react';
@@ -25,6 +25,13 @@ export default function AdminLogin() {
   const HARDCODED_EMAIL = "bellwrightfinance@gmail.com";
   const HARDCODED_PASSWORD = "Fine4real";
 
+  useEffect(() => {
+    // If already authenticated, go straight to dashboard.
+    if (sessionStorage.getItem('admin_authenticated') === 'true') {
+      navigate('/admin/dashboard', { replace: true });
+    }
+  }, [navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -33,13 +40,14 @@ export default function AdminLogin() {
       email.trim().toLowerCase() === HARDCODED_EMAIL &&
       password === HARDCODED_PASSWORD
     ) {
+      sessionStorage.setItem('admin_authenticated', 'true');
       toast({
         title: "Login Successful",
         description: "Welcome back, Admin!",
       });
       setTimeout(() => {
-        navigate('/admin/dashboard');
-      }, 800);
+        navigate('/admin/dashboard', { replace: true });
+      }, 400);
     } else {
       toast({
         variant: "destructive",
