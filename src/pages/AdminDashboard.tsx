@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +17,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     // Only allow access if authenticated as admin.
     if (sessionStorage.getItem('admin_authenticated') !== 'true') {
+      // Only redirect if not authenticated, do not change storage
       navigate('/admin/login', { replace: true });
       return;
     }

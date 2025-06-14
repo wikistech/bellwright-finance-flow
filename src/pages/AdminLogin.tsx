@@ -19,6 +19,7 @@ export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -45,9 +46,9 @@ export default function AdminLogin() {
         title: "Login Successful",
         description: "Welcome back, Admin!",
       });
-      setTimeout(() => {
-        navigate('/admin/dashboard', { replace: true });
-      }, 400);
+      setRedirecting(true);
+      navigate('/admin/dashboard', { replace: true });
+      return; // Prevent further rendering
     } else {
       toast({
         variant: "destructive",
@@ -55,10 +56,17 @@ export default function AdminLogin() {
         description: "Invalid credentials for admin login.",
       });
       setIsLoading(false);
-      return;
     }
-    setIsLoading(false);
   };
+
+  // Show a "Redirecting..." screen if we are navigating
+  if (redirecting) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-lg font-semibold text-indigo-600">Redirecting...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white flex flex-col justify-center items-center p-4">
