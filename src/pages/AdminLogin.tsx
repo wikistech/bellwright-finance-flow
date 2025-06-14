@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -28,35 +27,32 @@ export default function AdminLogin() {
     e.preventDefault();
     setIsLoading(true);
 
-    const hardcodedEmail = "bellwrightfinance@gmail.com";
-    const hardcodedPassword = "Fine4real";
+    const adminEmail = "bellwrightfinance@gmail.com";
 
-    // We first check against the hardcoded credentials.
-    if (email !== hardcodedEmail || password !== hardcodedPassword) {
+    // Only allow the main admin to attempt to log in through this form.
+    if (email.toLowerCase() !== adminEmail) {
       toast({
         variant: "destructive",
-        title: "Login Failed",
-        description: "Invalid credentials provided.",
+        title: "Access Denied",
+        description: "This login form is for the main administrator only.",
       });
       setIsLoading(false);
       return;
     }
 
     try {
-      // If credentials match, we then authenticate with Supabase.
-      // This is to ensure the user session is correctly established.
+      // Authenticate with Supabase. The password check is handled by Supabase.
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email,
         password: password,
       });
 
       if (error) {
-        // This can happen if the hardcoded credentials are not in sync with Supabase Auth.
         console.error('Supabase authentication error:', error);
         toast({
           variant: "destructive",
-          title: "Authentication Service Error",
-          description: "Could not verify credentials. Please contact support.",
+          title: "Login Failed",
+          description: error.message, // e.g., "Invalid login credentials"
         });
         setIsLoading(false);
         return;
