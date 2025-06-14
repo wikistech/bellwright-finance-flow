@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -31,22 +30,52 @@ export default function AdminLogin() {
     try {
       console.log('Admin login attempt for:', email);
       
-      // First check if admin exists in admin_users table and is approved
+      // First, authenticate the user with Supabase auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+      });
+      
+      if (authError) {
+        console.error('Authentication error:', authError);
+        let errorMessage = "Invalid email or password.";
+        if (authError.message.includes('Invalid login credentials')) {
+          errorMessage = "Invalid email or password. Please check your credentials and try again.";
+        } else if (authError.message.includes('Too many requests')) {
+          errorMessage = "Too many login attempts. Please wait a moment and try again.";
+        } else if (authError.message.includes('Email not confirmed')) {
+          // This check may not be relevant if email confirmation is disabled
+          errorMessage = "Please check your email for a confirmation link before logging in, or contact support if confirmation is not required.";
+        }
+        throw new Error(errorMessage);
+      }
+
+      if (!authData.user) {
+        // Should not happen if authError is null, but good to check
+        throw new Error("Authentication failed, user data not found.");
+      }
+
+      console.log('Authentication successful for user ID:', authData.user.id);
+
+      // Now, check if the authenticated user is a valid and approved admin
       const { data: adminData, error: adminCheckError } = await supabase
         .from('admin_users')
         .select('id, email, status, first_name, last_name')
-        .eq('email', email.toLowerCase())
+        .eq('id', authData.user.id) // Query by the authenticated user's ID
         .single();
 
       if (adminCheckError) {
-        console.error('Admin check error:', adminCheckError);
-        if (adminCheckError.code === 'PGRST116') {
-          throw new Error("No admin account found with this email address. Please register first.");
+        console.error('Admin check error after auth:', adminCheckError);
+        // If PGRST116, it means no record in admin_users for this authenticated user
+        if (adminCheckError.code === 'PGRST116') { 
+          // Sign out the user as they authenticated but are not in admin_users
+          await supabase.auth.signOut();
+          throw new Error("Your account is not registered as an admin. Please register or contact support.");
         }
-        throw new Error("Failed to verify admin account. Please try again.");
+        throw new Error("Failed to verify admin account details. Please try again.");
       }
 
-      console.log('Admin found:', adminData);
+      console.log('Admin details found:', adminData);
 
       // Check if admin is approved
       if (adminData.status !== 'approved') {
@@ -59,45 +88,25 @@ export default function AdminLogin() {
             statusMessage = "Your admin account has been rejected. Please contact the SuperAdmin for more information.";
             break;
           default:
-            statusMessage = "Your admin account is not active. Please contact the SuperAdmin.";
+            statusMessage = `Your admin account status is '${adminData.status}'. Please contact the SuperAdmin.`;
         }
+        // Sign out the user as their admin account is not approved
+        await supabase.auth.signOut();
         throw new Error(statusMessage);
       }
-
-      // Admin is approved, now authenticate
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
+      
+      // Admin is authenticated and approved
+      console.log('Admin login successful, user is approved admin:', authData.user.id);
+      toast({
+        title: "Login Successful",
+        description: `Welcome back, ${adminData.first_name || 'Admin'}!`,
       });
       
-      if (authError) {
-        console.error('Authentication error:', authError);
-        
-        let errorMessage = "Invalid email or password.";
-        
-        if (authError.message.includes('Invalid login credentials')) {
-          errorMessage = "Invalid email or password. Please check your credentials and try again.";
-        } else if (authError.message.includes('Too many requests')) {
-          errorMessage = "Too many login attempts. Please wait a moment and try again.";
-        } else if (authError.message.includes('Email not confirmed')) {
-          errorMessage = "Please check your email for a confirmation link before logging in.";
-        }
-        
-        throw new Error(errorMessage);
-      }
+      // Navigate to admin dashboard
+      navigate('/admin/dashboard');
       
-      if (authData.user) {
-        console.log('Admin login successful:', authData.user.id);
-        toast({
-          title: "Login Successful",
-          description: `Welcome back, ${adminData.first_name}!`,
-        });
-        
-        // Navigate to admin dashboard
-        navigate('/admin/dashboard');
-      }
     } catch (error: any) {
-      console.error('Admin login error:', error);
+      console.error('Admin login process error:', error);
       toast({
         variant: "destructive",
         title: "Login Failed",
