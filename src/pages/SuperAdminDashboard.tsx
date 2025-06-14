@@ -145,19 +145,40 @@ export default function SuperAdminDashboard() {
         .update({
           status: 'approved',
           approved_at: new Date().toISOString(),
-          approved_by: 'superadmin'
+          // approved_by: 'superadmin' // Removed this line as 'superadmin' is not a UUID
         })
         .eq('id', adminId)
         .select();
 
       if (updateError) {
-        console.error('Error updating admin status:', updateError);
-        throw new Error(updateError.message);
+        console.error('Error updating admin status to approved:', updateError);
+        toast({
+          variant: 'destructive',
+          title: 'Approval Error',
+          description: `Failed to update admin status: ${updateError.message}`,
+        });
+        setProcessingAdmin(null);
+        return; 
       }
 
-      console.log('Admin approval update result:', updateData);
+      console.log('Admin approval update result (from DB update call):', updateData);
 
-      // Verify the update by checking the current status
+      if (!updateData || updateData.length === 0) {
+        console.error('Admin approval: No data returned from update, or update failed to find the record.');
+        toast({
+          variant: 'destructive',
+          title: 'Approval Error',
+          description: 'Admin record not found or update failed to return data.',
+        });
+        setProcessingAdmin(null);
+        return;
+      }
+      
+      const updatedAdmin = updateData[0];
+      console.log('Status after attempted approval (from updateData):', updatedAdmin?.status);
+
+
+      // Verify the update by checking the current status from a fresh select
       const { data: verifyData, error: verifyError } = await supabase
         .from('admin_users')
         .select('id, status, approved_at')
@@ -165,12 +186,11 @@ export default function SuperAdminDashboard() {
         .single();
 
       if (verifyError) {
-        console.error('Error verifying admin status:', verifyError);
+        console.error('Error verifying admin status after approval:', verifyError);
       } else {
-        console.log('Verified admin status after approval:', verifyData);
+        console.log('Verified admin status after approval (from verification select):', verifyData);
       }
 
-      // Reload the data to ensure UI reflects the permanent change
       await loadDashboardData();
 
       toast({
@@ -206,13 +226,33 @@ export default function SuperAdminDashboard() {
         .select();
 
       if (updateError) {
-        console.error('Error updating admin status:', updateError);
-        throw new Error(updateError.message);
+        console.error('Error updating admin status to rejected:', updateError);
+        toast({
+          variant: 'destructive',
+          title: 'Rejection Error',
+          description: `Failed to update admin status: ${updateError.message}`,
+        });
+        setProcessingAdmin(null);
+        return;
       }
 
-      console.log('Admin rejection update result:', updateData);
+      console.log('Admin rejection update result (from DB update call):', updateData);
 
-      // Verify the update by checking the current status
+      if (!updateData || updateData.length === 0) {
+        console.error('Admin rejection: No data returned from update, or update failed to find the record.');
+        toast({
+          variant: 'destructive',
+          title: 'Rejection Error',
+          description: 'Admin record not found or update failed to return data.',
+        });
+        setProcessingAdmin(null);
+        return;
+      }
+
+      const updatedAdmin = updateData[0];
+      console.log('Status after attempted rejection (from updateData):', updatedAdmin?.status);
+
+      // Verify the update by checking the current status from a fresh select
       const { data: verifyData, error: verifyError } = await supabase
         .from('admin_users')
         .select('id, status, rejected_at')
@@ -220,12 +260,11 @@ export default function SuperAdminDashboard() {
         .single();
 
       if (verifyError) {
-        console.error('Error verifying admin status:', verifyError);
+        console.error('Error verifying admin status after rejection:', verifyError);
       } else {
-        console.log('Verified admin status after rejection:', verifyData);
+        console.log('Verified admin status after rejection (from verification select):', verifyData);
       }
 
-      // Reload the data to ensure UI reflects the permanent change
       await loadDashboardData();
 
       toast({
@@ -303,13 +342,19 @@ export default function SuperAdminDashboard() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      console.error("Error formatting date:", dateString, e);
+      return 'Invalid Date';
+    }
   };
   
   return (
@@ -325,10 +370,10 @@ export default function SuperAdminDashboard() {
               variant="outline" 
               size="sm"
               onClick={refreshData}
-              disabled={isRefreshing}
+              disabled={isRefreshing || isLoading}
               className="text-gray-600 hover:text-gray-900"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-4 w-4 mr-2 ${(isRefreshing || isLoading) ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
             <Button 
@@ -412,9 +457,9 @@ export default function SuperAdminDashboard() {
               Pending Admin Registrations ({pendingAdmins.length})
             </h3>
             
-            {isLoading ? (
+            {isLoading && pendingAdmins.length === 0 ? (
               <div className="text-center py-4">Loading pending admins...</div>
-            ) : pendingAdmins.length === 0 ? (
+            ) : !isLoading && pendingAdmins.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <p>No pending admin registrations</p>
                 <p className="text-sm mt-2">New admin registrations will appear here for approval.</p>
@@ -422,8 +467,8 @@ export default function SuperAdminDashboard() {
             ) : (
               <div className="space-y-4">
                 {pendingAdmins.map((admin) => (
-                  <div key={admin.id} className="border rounded-lg p-4 flex items-center justify-between">
-                    <div className="flex-1">
+                  <div key={admin.id} className="border rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between">
+                    <div className="flex-1 mb-3 sm:mb-0">
                       <div className="flex items-center space-x-3">
                         <div>
                           <h4 className="font-medium">{admin.first_name} {admin.last_name}</h4>
@@ -438,25 +483,25 @@ export default function SuperAdminDashboard() {
                         </Badge>
                       </div>
                     </div>
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-2 w-full sm:w-auto">
                       <Button
                         size="sm"
                         onClick={() => handleApproveAdmin(admin.id)}
-                        disabled={processingAdmin === admin.id}
-                        className="bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                        disabled={processingAdmin === admin.id || isLoading}
+                        className="bg-green-600 hover:bg-green-700 disabled:opacity-50 flex-grow sm:flex-grow-0"
                       >
                         <CheckCircle className="h-4 w-4 mr-1" />
-                        {processingAdmin === admin.id ? 'Approving...' : 'Approve'}
+                        {processingAdmin === admin.id && !isLoading ? 'Approving...' : 'Approve'}
                       </Button>
                       <Button
                         size="sm"
                         variant="destructive"
                         onClick={() => handleRejectAdmin(admin.id)}
-                        disabled={processingAdmin === admin.id}
-                        className="disabled:opacity-50"
+                        disabled={processingAdmin === admin.id || isLoading}
+                        className="disabled:opacity-50 flex-grow sm:flex-grow-0"
                       >
                         <XCircle className="h-4 w-4 mr-1" />
-                        {processingAdmin === admin.id ? 'Rejecting...' : 'Reject'}
+                        {processingAdmin === admin.id && !isLoading ? 'Rejecting...' : 'Reject'}
                       </Button>
                     </div>
                   </div>
@@ -474,9 +519,9 @@ export default function SuperAdminDashboard() {
               Approved Admin Accounts ({approvedAdmins.length})
             </h3>
             
-            {isLoading ? (
+            {isLoading && approvedAdmins.length === 0 ? (
               <div className="text-center py-4">Loading approved admins...</div>
-            ) : approvedAdmins.length === 0 ? (
+            ) : !isLoading && approvedAdmins.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <p>No approved admin accounts</p>
                 <p className="text-sm mt-2">Approved admin accounts will appear here.</p>
@@ -484,14 +529,14 @@ export default function SuperAdminDashboard() {
             ) : (
               <div className="space-y-4">
                 {approvedAdmins.map((admin) => (
-                  <div key={admin.id} className="border rounded-lg p-4 flex items-center justify-between">
-                    <div className="flex-1">
+                  <div key={admin.id} className="border rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between">
+                    <div className="flex-1 mb-3 sm:mb-0">
                       <div className="flex items-center space-x-3">
                         <div>
                           <h4 className="font-medium">{admin.first_name} {admin.last_name}</h4>
                           <p className="text-sm text-gray-600">{admin.email}</p>
                           <p className="text-xs text-gray-500">
-                            Approved: {admin.approved_at ? formatDate(admin.approved_at) : 'N/A'}
+                            Approved: {formatDate(admin.approved_at)}
                           </p>
                         </div>
                         <Badge variant="outline" className="text-green-600 bg-green-50">
@@ -500,16 +545,16 @@ export default function SuperAdminDashboard() {
                         </Badge>
                       </div>
                     </div>
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-2 w-full sm:w-auto">
                       <Button
                         size="sm"
                         variant="destructive"
                         onClick={() => handleDeleteAdmin(admin.id)}
-                        disabled={deletingAdmin === admin.id}
-                        className="disabled:opacity-50"
+                        disabled={deletingAdmin === admin.id || isLoading}
+                        className="disabled:opacity-50 flex-grow sm:flex-grow-0"
                       >
                         <Trash2 className="h-4 w-4 mr-1" />
-                        {deletingAdmin === admin.id ? 'Deleting...' : 'Delete'}
+                        {deletingAdmin === admin.id && !isLoading ? 'Deleting...' : 'Delete'}
                       </Button>
                     </div>
                   </div>
