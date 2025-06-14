@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +15,7 @@ import {
   Shield,
   UserCheck,
   Clock,
+  RefreshCw, // <-- Added missing import here
 } from 'lucide-react';
 
 interface PendingAdmin {
