@@ -83,25 +83,34 @@ export default function SuperAdminDashboard() {
         setPendingLoans(loanData.filter(loan => loan.status === 'pending').length);
       }
 
-      // Get pending admins - only those still pending!
+      // Get pending admins - only those with status 'pending'
       const { data: pendingAdminData, error: pendingAdminError } = await supabase
         .from('admin_users')
         .select('id, email, first_name, last_name, status, created_at')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      setPendingAdmins(pendingAdminData || []);
+      if (pendingAdminError) {
+        console.error('Error loading pending admins:', pendingAdminError);
+      } else {
+        console.log('Loaded pending admins:', pendingAdminData);
+        setPendingAdmins(pendingAdminData || []);
+      }
 
-      // Get approved admins
+      // Get approved admins - only those with status 'approved'
       const { data: approvedAdminData, error: approvedAdminError } = await supabase
         .from('admin_users')
         .select('id, email, first_name, last_name, status, approved_at')
         .eq('status', 'approved')
         .order('approved_at', { ascending: false });
 
-      setApprovedAdmins(approvedAdminData || []);
+      if (approvedAdminError) {
+        console.error('Error loading approved admins:', approvedAdminError);
+      } else {
+        console.log('Loaded approved admins:', approvedAdminData);
+        setApprovedAdmins(approvedAdminData || []);
+      }
 
-      // No need to show rejected — just don't display them at all
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       toast({
@@ -127,22 +136,41 @@ export default function SuperAdminDashboard() {
   const handleApproveAdmin = async (adminId: string) => {
     if (processingAdmin) return;
     setProcessingAdmin(adminId);
+    console.log('Approving admin:', adminId);
+    
     try {
-      // Update admin status to approved and set approved_at
-      const { error: updateError } = await supabase
+      // Update admin status to approved
+      const { data: updateData, error: updateError } = await supabase
         .from('admin_users')
         .update({
           status: 'approved',
           approved_at: new Date().toISOString(),
           approved_by: 'superadmin'
         })
-        .eq('id', adminId);
+        .eq('id', adminId)
+        .select();
 
       if (updateError) {
+        console.error('Error updating admin status:', updateError);
         throw new Error(updateError.message);
       }
 
-      // After approving, reload list from DB to ensure current state
+      console.log('Admin approval update result:', updateData);
+
+      // Verify the update by checking the current status
+      const { data: verifyData, error: verifyError } = await supabase
+        .from('admin_users')
+        .select('id, status, approved_at')
+        .eq('id', adminId)
+        .single();
+
+      if (verifyError) {
+        console.error('Error verifying admin status:', verifyError);
+      } else {
+        console.log('Verified admin status after approval:', verifyData);
+      }
+
+      // Reload the data to ensure UI reflects the permanent change
       await loadDashboardData();
 
       toast({
@@ -150,6 +178,7 @@ export default function SuperAdminDashboard() {
         description: 'The admin account has been approved successfully. They can now log in.',
       });
     } catch (error: any) {
+      console.error('Error approving admin:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -163,21 +192,40 @@ export default function SuperAdminDashboard() {
   const handleRejectAdmin = async (adminId: string) => {
     if (processingAdmin) return;
     setProcessingAdmin(adminId);
+    console.log('Rejecting admin:', adminId);
+    
     try {
-      // Update admin status to rejected and set rejected_at
-      const { error: updateError } = await supabase
+      // Update admin status to rejected
+      const { data: updateData, error: updateError } = await supabase
         .from('admin_users')
         .update({
           status: 'rejected',
           rejected_at: new Date().toISOString()
         })
-        .eq('id', adminId);
+        .eq('id', adminId)
+        .select();
 
       if (updateError) {
+        console.error('Error updating admin status:', updateError);
         throw new Error(updateError.message);
       }
 
-      // After rejecting, reload list from DB to ensure current state
+      console.log('Admin rejection update result:', updateData);
+
+      // Verify the update by checking the current status
+      const { data: verifyData, error: verifyError } = await supabase
+        .from('admin_users')
+        .select('id, status, rejected_at')
+        .eq('id', adminId)
+        .single();
+
+      if (verifyError) {
+        console.error('Error verifying admin status:', verifyError);
+      } else {
+        console.log('Verified admin status after rejection:', verifyData);
+      }
+
+      // Reload the data to ensure UI reflects the permanent change
       await loadDashboardData();
 
       toast({
@@ -185,6 +233,7 @@ export default function SuperAdminDashboard() {
         description: 'The admin account has been rejected.',
       });
     } catch (error: any) {
+      console.error('Error rejecting admin:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -201,6 +250,8 @@ export default function SuperAdminDashboard() {
       return;
     }
     setDeletingAdmin(adminId);
+    console.log('Deleting admin:', adminId);
+    
     try {
       const { error: dbError } = await supabase
         .from('admin_users')
@@ -208,9 +259,11 @@ export default function SuperAdminDashboard() {
         .eq('id', adminId);
 
       if (dbError) {
+        console.error('Error deleting admin:', dbError);
         throw new Error(dbError.message);
       }
 
+      console.log('Admin deleted successfully');
       await loadDashboardData();
 
       toast({
@@ -218,6 +271,7 @@ export default function SuperAdminDashboard() {
         description: 'The admin account has been permanently deleted.',
       });
     } catch (error: any) {
+      console.error('Error deleting admin:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
