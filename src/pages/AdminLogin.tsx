@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -8,13 +9,11 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/integrations/supabase/client';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -22,65 +21,37 @@ export default function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  
+
+  const HARDCODED_EMAIL = "bellwrightfinance@gmail.com";
+  const HARDCODED_PASSWORD = "Fine4real";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    const adminEmail = "bellwrightfinance@gmail.com";
-
-    // Only allow the main admin to attempt to log in through this form.
-    if (email.toLowerCase() !== adminEmail) {
+    if (
+      email.trim().toLowerCase() === HARDCODED_EMAIL &&
+      password === HARDCODED_PASSWORD
+    ) {
+      toast({
+        title: "Login Successful",
+        description: "Welcome back, Admin!",
+      });
+      setTimeout(() => {
+        navigate('/admin/dashboard');
+      }, 800);
+    } else {
       toast({
         variant: "destructive",
-        title: "Access Denied",
-        description: "This login form is for the main administrator only.",
+        title: "Login Failed",
+        description: "Invalid credentials for admin login.",
       });
       setIsLoading(false);
       return;
     }
-
-    try {
-      // Authenticate with Supabase. The password check is handled by Supabase.
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
-      });
-
-      if (error) {
-        console.error('Supabase authentication error:', error);
-        toast({
-          variant: "destructive",
-          title: "Login Failed",
-          description: error.message, // e.g., "Invalid login credentials"
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      if (data.user) {
-        // Login is successful. The protected routes will handle authorization.
-        toast({
-          title: "Login Successful",
-          description: `Welcome back, Admin!`,
-        });
-        navigate('/admin/dashboard');
-      } else {
-         throw new Error("Authentication failed, user data not found.");
-      }
-      
-    } catch (error: any) {
-      console.error('Admin login process error:', error);
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: error.message || "An error occurred during login.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    setIsLoading(false);
   };
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white flex flex-col justify-center items-center p-4">
       <Link to="/" className="absolute top-4 left-4 text-gray-600 hover:text-indigo-600 transition-colors">
@@ -151,7 +122,6 @@ export default function AdminLogin() {
               </Button>
             </form>
           </CardContent>
-          {/* Footer with registration link is removed */}
         </Card>
       </motion.div>
       
