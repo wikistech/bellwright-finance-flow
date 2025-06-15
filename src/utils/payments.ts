@@ -30,9 +30,9 @@ export const submitPayment = async (paymentData: PaymentData) => {
       .insert({
         user_id: user.id,
         amount: paymentData.amount,
-        cardholder_name: paymentData.cardholderName,
-        card_number: paymentData.cardNumber,
-        payment_type: paymentData.paymentType,
+        cardholderName: paymentData.cardholderName,
+        cardNumber: paymentData.cardNumber,
+        paymentType: paymentData.paymentType,
         description: paymentData.description || 'Payment',
         status: paymentData.status
       })

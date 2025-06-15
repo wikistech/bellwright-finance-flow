@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,17 +12,18 @@ export default function AdminDashboard() {
   const [loanCount, setLoanCount] = useState(0);
   const [pendingLoans, setPendingLoans] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     // Only allow access if authenticated as admin.
     if (sessionStorage.getItem('admin_authenticated') !== 'true') {
-      // Only redirect if not authenticated, do not change storage
       navigate('/admin/login', { replace: true });
-      return;
+    } else {
+      setAuthChecked(true);
+      loadDashboardData();
     }
-    loadDashboardData();
   }, [navigate]);
 
   const loadDashboardData = async () => {
@@ -61,6 +63,14 @@ export default function AdminDashboard() {
     navigate('/admin/login', { replace: true });
   };
   
+  if (!authChecked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="text-lg font-semibold text-gray-700">Verifying session...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm">
