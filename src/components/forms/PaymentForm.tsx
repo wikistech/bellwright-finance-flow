@@ -175,7 +175,7 @@ export function PaymentForm({ savedMethods = [] }: PaymentFormProps) {
         cardNumber: cardNumber,
         paymentType: data.paymentType || 'deposit',
         description: data.description || 'Loan processing deposit',
-        status: 'completed' as 'pending' | 'completed' | 'failed'
+        status: 'pending' as 'pending' | 'completed' | 'failed'
       };
       
       console.log('Submitting payment data:', paymentData);
@@ -185,8 +185,8 @@ export function PaymentForm({ savedMethods = [] }: PaymentFormProps) {
       console.log('Payment submitted successfully:', result);
       
       toast({
-        title: "Deposit Successful",
-        description: `$${data.amount} deposit has been successfully processed.`,
+        title: "Deposit Submitted",
+        description: `$${data.amount} deposit is now pending for review.`,
       });
       
       setPaymentCompleted(true);
@@ -208,29 +208,29 @@ export function PaymentForm({ savedMethods = [] }: PaymentFormProps) {
         <CardHeader>
           <CardTitle className="text-2xl flex items-center gap-2">
             <CheckCircle className="h-6 w-6 text-green-500" />
-            Deposit Completed
+            Deposit Submitted for Review
           </CardTitle>
         </CardHeader>
         <CardContent>
           <Alert>
             <CheckCircle className="h-4 w-4" />
             <AlertDescription className="text-lg">
-              Your deposit has been successfully processed! Your loan application is now under review.
+              Your deposit has been successfully submitted! It is now under review by our team.
             </AlertDescription>
           </Alert>
           
           <div className="mt-6 space-y-4">
             <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-blue-900 mb-2">Next Steps:</h3>
+              <h3 className="font-semibold text-blue-900 mb-2">What's Next?</h3>
               <ul className="list-disc list-inside text-blue-800 space-y-1">
-                <li>Your loan application and deposit are being reviewed by our admin team</li>
-                <li>You will receive a notification once your application is approved or requires additional information</li>
-                <li>Please allow 1-3 business days for the review process</li>
+                <li>Your deposit is being reviewed by our admin team.</li>
+                <li>You will receive a notification once it's approved.</li>
+                <li>Please allow 1-2 business days for the review process.</li>
               </ul>
             </div>
             
             <p className="text-gray-600 text-center">
-              Thank you for choosing Bellwright Finance. We appreciate your business!
+              Thank you for choosing Bellwright Finance.
             </p>
           </div>
         </CardContent>

@@ -168,6 +168,45 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          amount: number
+          card_number: string
+          cardholder_name: string
+          created_at: string
+          description: string | null
+          id: string
+          payment_type: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          card_number: string
+          cardholder_name: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          payment_type?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          card_number?: string
+          cardholder_name?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          payment_type?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       superadmin_users: {
         Row: {
           created_at: string

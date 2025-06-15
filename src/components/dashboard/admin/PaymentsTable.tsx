@@ -1,4 +1,3 @@
-
 import {
   Table,
   TableBody,
@@ -8,6 +7,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Check, X } from 'lucide-react';
 
 interface PaymentMethod {
   id: string;
@@ -32,9 +33,11 @@ interface Payment {
 interface PaymentsTableProps {
   payments?: PaymentMethod[];
   transactions?: Payment[];
+  onApprove?: (id: string) => void;
+  onReject?: (id: string) => void;
 }
 
-export function PaymentsTable({ payments = [], transactions = [] }: PaymentsTableProps) {
+export function PaymentsTable({ payments = [], transactions = [], onApprove, onReject }: PaymentsTableProps) {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -54,7 +57,7 @@ export function PaymentsTable({ payments = [], transactions = [] }: PaymentsTabl
       case 'completed':
         return <Badge variant="default" className="bg-green-100 text-green-800">Completed</Badge>;
       case 'pending':
-        return <Badge variant="secondary">Pending</Badge>;
+        return <Badge variant="secondary" className="bg-amber-100 text-amber-800">Pending</Badge>;
       case 'failed':
         return <Badge variant="destructive">Failed</Badge>;
       default:
@@ -81,6 +84,7 @@ export function PaymentsTable({ payments = [], transactions = [] }: PaymentsTabl
                   <TableHead>Card</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -93,6 +97,18 @@ export function PaymentsTable({ payments = [], transactions = [] }: PaymentsTabl
                     <TableCell>{formatCardNumber(transaction.card_number)}</TableCell>
                     <TableCell className="capitalize">{transaction.payment_type}</TableCell>
                     <TableCell>{getStatusBadge(transaction.status)}</TableCell>
+                    <TableCell className="text-right">
+                      {transaction.status === 'pending' && onApprove && onReject && (
+                        <div className="flex gap-2 justify-end">
+                          <Button title="Approve" size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => onApprove(transaction.id)}>
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button title="Reject" size="sm" variant="destructive" className="h-8 w-8 p-0" onClick={() => onReject(transaction.id)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

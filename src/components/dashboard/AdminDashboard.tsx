@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -9,6 +8,7 @@ import { PaymentsTable } from "@/components/dashboard/admin/PaymentsTable";
 import { AdminTabsNav } from "@/components/dashboard/admin/AdminTabsNav";
 import { loadUserProfiles, loadLoanApplications, loadPaymentMethods } from "@/components/dashboard/admin/AdminDataService";
 import { handleApproveLoan, handleRejectLoan } from "@/components/dashboard/admin/AdminLoansService";
+import { handleApprovePayment, handleRejectPayment } from "@/components/dashboard/admin/AdminPaymentsService";
 import { supabase } from "@/integrations/supabase/client";
 
 interface UserProfile {
@@ -118,6 +118,9 @@ export function AdminDashboard() {
   
   const onApprove = (loanId: string) => handleApproveLoan(loanId, loans, setLoans);
   const onReject = (loanId: string) => handleRejectLoan(loanId, loans, setLoans);
+
+  const onApprovePayment = (paymentId: string) => handleApprovePayment(paymentId, transactions, setTransactions, toast);
+  const onRejectPayment = (paymentId: string) => handleRejectPayment(paymentId, transactions, setTransactions, toast);
   
   if (loading) {
     return (
@@ -138,7 +141,7 @@ export function AdminDashboard() {
       <CardContent>
         {activeTab === 'users' && <UsersTable profiles={profiles} />}
         {activeTab === 'loans' && <LoansTable loans={loans} onApprove={onApprove} onReject={onReject} />}
-        {activeTab === 'payments' && <PaymentsTable payments={payments} transactions={transactions} />}
+        {activeTab === 'payments' && <PaymentsTable payments={payments} transactions={transactions} onApprove={onApprovePayment} onReject={onRejectPayment} />}
       </CardContent>
     </Card>
   );
