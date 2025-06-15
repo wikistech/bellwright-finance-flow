@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,17 +18,21 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     // Only allow access if authenticated as admin.
-    // Also, don't navigate if already on login page to prevent redirect loop.
+    // Avoid redirecting to /admin/login if already there
     const authenticated = sessionStorage.getItem('admin_authenticated') === 'true';
     if (!authenticated) {
       if (window.location.pathname !== '/admin/login') {
         navigate('/admin/login', { replace: true });
+      } else {
+        // On login page, don't try to load dashboard
+        setAuthChecked(false);
       }
     } else {
       setAuthChecked(true);
       loadDashboardData();
     }
-  }, [navigate]);
+    // eslint-disable-next-line
+  }, []);
 
   const loadDashboardData = async () => {
     setIsLoading(true);

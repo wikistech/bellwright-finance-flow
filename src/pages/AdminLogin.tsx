@@ -19,7 +19,6 @@ export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [redirecting, setRedirecting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -27,15 +26,17 @@ export default function AdminLogin() {
   const HARDCODED_PASSWORD = "Fine4real";
 
   useEffect(() => {
-    // If already authenticated, go straight to dashboard (but avoid endless loop)
+    // Avoid redirect loop: only navigate away if authenticated and not already on dashboard
     if (
-      sessionStorage.getItem('admin_authenticated') === 'true'
-      && window.location.pathname !== '/admin/dashboard'
+      sessionStorage.getItem('admin_authenticated') === 'true' &&
+      window.location.pathname === '/admin/login'
     ) {
       navigate('/admin/dashboard', { replace: true });
     }
-  }, [navigate]);
-  
+    // No dependency on navigate only, depends on pathname as well
+    // eslint-disable-next-line
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -49,12 +50,11 @@ export default function AdminLogin() {
         title: "Login Successful",
         description: "Welcome back, Admin!",
       });
-      setRedirecting(true);
       // Only redirect if not already there
       if (window.location.pathname !== '/admin/dashboard') {
         navigate('/admin/dashboard', { replace: true });
       }
-      return; // Prevent further rendering
+      // Loading finishes after navigation
     } else {
       toast({
         variant: "destructive",
@@ -64,15 +64,6 @@ export default function AdminLogin() {
       setIsLoading(false);
     }
   };
-
-  // Show a "Redirecting..." screen if we are navigating
-  if (redirecting) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-lg font-semibold text-indigo-600">Redirecting...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white flex flex-col justify-center items-center p-4">
