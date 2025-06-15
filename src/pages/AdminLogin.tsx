@@ -26,20 +26,19 @@ export default function AdminLogin() {
   const HARDCODED_PASSWORD = "Fine4real";
 
   useEffect(() => {
-    // Avoid redirect loop: only navigate away if authenticated and not already on dashboard
-    if (
-      sessionStorage.getItem('admin_authenticated') === 'true' &&
-      window.location.pathname === '/admin/login'
-    ) {
+    // Check if already authenticated when component mounts
+    const isAuthenticated = sessionStorage.getItem('admin_authenticated') === 'true';
+    if (isAuthenticated) {
       navigate('/admin/dashboard', { replace: true });
     }
-    // No dependency on navigate only, depends on pathname as well
-    // eslint-disable-next-line
-  }, []);
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
+    // Simulate login delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     if (
       email.trim().toLowerCase() === HARDCODED_EMAIL &&
@@ -50,11 +49,7 @@ export default function AdminLogin() {
         title: "Login Successful",
         description: "Welcome back, Admin!",
       });
-      // Only redirect if not already there
-      if (window.location.pathname !== '/admin/dashboard') {
-        navigate('/admin/dashboard', { replace: true });
-      }
-      // Loading finishes after navigation
+      navigate('/admin/dashboard', { replace: true });
     } else {
       toast({
         variant: "destructive",

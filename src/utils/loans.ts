@@ -25,15 +25,17 @@ export const submitLoanApplication = async (data: LoanApplicationData) => {
       throw new Error("User must be logged in to apply for a loan");
     }
     
+    console.log('Submitting loan application for user:', userData.user.id);
+    
     // Submit loan application
-    const { error } = await supabase
+    const { data: loanData, error } = await supabase
       .from('loan_applications')
       .insert({
         user_id: userData.user.id,
-        loanType: data.loanType,
+        loan_type: data.loanType,
         amount: data.amount,
         term: data.term,
-        fullName: data.fullName,
+        full_name: data.fullName,
         email: data.email,
         phone: data.phone,
         address: data.address,
@@ -43,11 +45,17 @@ export const submitLoanApplication = async (data: LoanApplicationData) => {
         status: 'pending',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      });
+      })
+      .select()
+      .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error('Loan application error:', error);
+      throw error;
+    }
     
-    return { success: true };
+    console.log('Loan application submitted successfully:', loanData);
+    return { success: true, data: loanData };
   } catch (error) {
     console.error("Error submitting loan application:", error);
     throw error;
@@ -91,6 +99,30 @@ export const getAllLoanApplications = async () => {
     return data || [];
   } catch (error) {
     console.error("Error fetching all loan applications:", error);
+    throw error;
+  }
+};
+
+// Update loan status (admin only)
+export const updateLoanStatus = async (loanId: string, status: 'pending' | 'approved' | 'rejected') => {
+  try {
+    const { data, error } = await supabase
+      .from('loan_applications')
+      .update({ 
+        status,
+        approved_at: status === 'approved' ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', loanId)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    console.log('Loan status updated:', data);
+    return data;
+  } catch (error) {
+    console.error("Error updating loan status:", error);
     throw error;
   }
 };

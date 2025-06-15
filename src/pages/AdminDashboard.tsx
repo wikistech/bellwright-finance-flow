@@ -12,32 +12,26 @@ export default function AdminDashboard() {
   const [loanCount, setLoanCount] = useState(0);
   const [pendingLoans, setPendingLoans] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [authChecked, setAuthChecked] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Only allow access if authenticated as admin.
-    // Avoid redirecting to /admin/login if already there
-    const authenticated = sessionStorage.getItem('admin_authenticated') === 'true';
-    if (!authenticated) {
-      if (window.location.pathname !== '/admin/login') {
-        navigate('/admin/login', { replace: true });
-      } else {
-        // On login page, don't try to load dashboard
-        setAuthChecked(false);
-      }
-    } else {
-      setAuthChecked(true);
-      loadDashboardData();
+    // Check authentication and load data
+    const isAuthenticated = sessionStorage.getItem('admin_authenticated') === 'true';
+    
+    if (!isAuthenticated) {
+      navigate('/admin/login', { replace: true });
+      return;
     }
-    // eslint-disable-next-line
-  }, []);
+
+    // Load dashboard data
+    loadDashboardData();
+  }, [navigate]);
 
   const loadDashboardData = async () => {
     setIsLoading(true);
     try {
-      // Get user count
+      // Get user count from auth users
       const { count: userCountData, error: userError } = await supabase
         .from('verification_codes')
         .select('user_id', { count: 'exact', head: true });
@@ -70,14 +64,6 @@ export default function AdminDashboard() {
     });
     navigate('/admin/login', { replace: true });
   };
-  
-  if (!authChecked) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="text-lg font-semibold text-gray-700">Verifying session...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">

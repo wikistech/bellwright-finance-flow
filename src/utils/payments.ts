@@ -30,10 +30,10 @@ export const submitPayment = async (paymentData: PaymentData) => {
       .insert({
         user_id: user.id,
         amount: paymentData.amount,
-        cardholderName: paymentData.cardholderName,
-        cardNumber: paymentData.cardNumber,
-        paymentType: paymentData.paymentType,
-        description: paymentData.description || 'Payment',
+        cardholder_name: paymentData.cardholderName,
+        card_number: paymentData.cardNumber,
+        payment_type: paymentData.paymentType,
+        description: paymentData.description || 'Payment transaction',
         status: paymentData.status
       })
       .select()
@@ -48,6 +48,26 @@ export const submitPayment = async (paymentData: PaymentData) => {
     return data;
   } catch (error: any) {
     console.error('Payment submission error:', error);
+    throw error;
+  }
+};
+
+// Function to get user payments for admin view
+export const getUserPayments = async (userId?: string) => {
+  try {
+    let query = supabase.from('payments').select('*');
+    
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+    
+    const { data, error } = await query.order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching payments:', error);
     throw error;
   }
 };
