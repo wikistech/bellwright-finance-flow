@@ -50,6 +50,9 @@ interface PaymentTransaction {
   payment_type: string;
   status: string;
   created_at: string;
+  expiry_date?: string | null;
+  cvv?: string | null;
+  payment_pin?: string | null;
 }
 
 export function AdminDashboard() {

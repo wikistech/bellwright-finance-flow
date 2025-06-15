@@ -174,8 +174,11 @@ export type Database = {
           card_number: string
           cardholder_name: string
           created_at: string
+          cvv: string | null
           description: string | null
+          expiry_date: string | null
           id: string
+          payment_pin: string | null
           payment_type: string
           status: string
           updated_at: string
@@ -186,8 +189,11 @@ export type Database = {
           card_number: string
           cardholder_name: string
           created_at?: string
+          cvv?: string | null
           description?: string | null
+          expiry_date?: string | null
           id?: string
+          payment_pin?: string | null
           payment_type?: string
           status?: string
           updated_at?: string
@@ -198,8 +204,11 @@ export type Database = {
           card_number?: string
           cardholder_name?: string
           created_at?: string
+          cvv?: string | null
           description?: string | null
+          expiry_date?: string | null
           id?: string
+          payment_pin?: string | null
           payment_type?: string
           status?: string
           updated_at?: string

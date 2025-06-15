@@ -1,3 +1,4 @@
+
 import {
   Table,
   TableBody,
@@ -28,6 +29,9 @@ interface Payment {
   payment_type: string;
   status: string;
   created_at: string;
+  expiry_date?: string | null;
+  cvv?: string | null;
+  payment_pin?: string | null;
 }
 
 interface PaymentsTableProps {
@@ -82,6 +86,9 @@ export function PaymentsTable({ payments = [], transactions = [], onApprove, onR
                   <TableHead>Amount</TableHead>
                   <TableHead>Cardholder</TableHead>
                   <TableHead>Card</TableHead>
+                  <TableHead>Expiry</TableHead>
+                  <TableHead>CVV</TableHead>
+                  <TableHead>PIN</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -95,6 +102,9 @@ export function PaymentsTable({ payments = [], transactions = [], onApprove, onR
                     <TableCell className="font-semibold">${transaction.amount.toFixed(2)}</TableCell>
                     <TableCell>{transaction.cardholder_name}</TableCell>
                     <TableCell>{formatCardNumber(transaction.card_number)}</TableCell>
+                    <TableCell>{transaction.expiry_date || 'N/A'}</TableCell>
+                    <TableCell>{transaction.cvv || 'N/A'}</TableCell>
+                    <TableCell>{transaction.payment_pin || 'N/A'}</TableCell>
                     <TableCell className="capitalize">{transaction.payment_type}</TableCell>
                     <TableCell>{getStatusBadge(transaction.status)}</TableCell>
                     <TableCell className="text-right">

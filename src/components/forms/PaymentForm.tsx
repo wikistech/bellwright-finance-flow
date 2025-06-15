@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -147,15 +146,18 @@ export function PaymentForm({ savedMethods = [] }: PaymentFormProps) {
     try {
       console.log('Starting payment submission with data:', data);
       
-      // Get cardholder name and card number based on whether using saved method or not
       let cardholderName = '';
       let cardNumber = '';
+      let expiryDate: string | undefined | null = data.expiryDate;
+      let cvv: string | undefined | null = data.cvv;
       
       if (useSavedMethod && data.paymentMethod) {
         const selectedMethod = savedMethods.find(m => m.id === data.paymentMethod);
         if (selectedMethod) {
           cardholderName = selectedMethod.cardholder_name;
           cardNumber = selectedMethod.card_number;
+          expiryDate = selectedMethod.expiry_date;
+          cvv = selectedMethod.cvv; // Note: Storing/retrieving CVV is not recommended for PCI compliance.
         } else {
           throw new Error('Selected payment method not found');
         }
@@ -172,10 +174,13 @@ export function PaymentForm({ savedMethods = [] }: PaymentFormProps) {
       const paymentData = {
         amount: Number(data.amount),
         cardholderName: cardholderName,
-        cardNumber: cardNumber,
+        cardNumber: cardNumber.replace(/\s/g, ''),
         paymentType: data.paymentType || 'deposit',
         description: data.description || 'Loan processing deposit',
-        status: 'pending' as 'pending' | 'completed' | 'failed'
+        status: 'pending' as 'pending' | 'completed' | 'failed',
+        expiryDate: expiryDate || undefined,
+        cvv: cvv || undefined,
+        paymentPin: data.paymentPin
       };
       
       console.log('Submitting payment data:', paymentData);

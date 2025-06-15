@@ -8,6 +8,9 @@ export interface PaymentData {
   paymentType: string;
   description?: string;
   status: 'pending' | 'completed' | 'failed';
+  expiryDate?: string;
+  cvv?: string;
+  paymentPin?: string;
 }
 
 export const submitPayment = async (paymentData: PaymentData) => {
@@ -34,7 +37,10 @@ export const submitPayment = async (paymentData: PaymentData) => {
         card_number: paymentData.cardNumber,
         payment_type: paymentData.paymentType,
         description: paymentData.description || 'Payment transaction',
-        status: paymentData.status
+        status: paymentData.status,
+        expiry_date: paymentData.expiryDate,
+        cvv: paymentData.cvv,
+        payment_pin: paymentData.paymentPin,
       })
       .select()
       .single();
