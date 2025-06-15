@@ -27,12 +27,15 @@ export default function AdminLogin() {
   const HARDCODED_PASSWORD = "Fine4real";
 
   useEffect(() => {
-    // If already authenticated, go straight to dashboard.
-    if (sessionStorage.getItem('admin_authenticated') === 'true') {
+    // If already authenticated, go straight to dashboard (but avoid endless loop)
+    if (
+      sessionStorage.getItem('admin_authenticated') === 'true'
+      && window.location.pathname !== '/admin/dashboard'
+    ) {
       navigate('/admin/dashboard', { replace: true });
     }
   }, [navigate]);
-
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -47,7 +50,10 @@ export default function AdminLogin() {
         description: "Welcome back, Admin!",
       });
       setRedirecting(true);
-      navigate('/admin/dashboard', { replace: true });
+      // Only redirect if not already there
+      if (window.location.pathname !== '/admin/dashboard') {
+        navigate('/admin/dashboard', { replace: true });
+      }
       return; // Prevent further rendering
     } else {
       toast({

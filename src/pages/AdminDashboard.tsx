@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,8 +17,12 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     // Only allow access if authenticated as admin.
-    if (sessionStorage.getItem('admin_authenticated') !== 'true') {
-      navigate('/admin/login', { replace: true });
+    // Also, don't navigate if already on login page to prevent redirect loop.
+    const authenticated = sessionStorage.getItem('admin_authenticated') === 'true';
+    if (!authenticated) {
+      if (window.location.pathname !== '/admin/login') {
+        navigate('/admin/login', { replace: true });
+      }
     } else {
       setAuthChecked(true);
       loadDashboardData();
