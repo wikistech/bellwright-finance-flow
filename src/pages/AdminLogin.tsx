@@ -19,6 +19,7 @@ export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -27,15 +28,30 @@ export default function AdminLogin() {
 
   useEffect(() => {
     // Check if already authenticated when component mounts
-    const isAuthenticated = sessionStorage.getItem('admin_authenticated') === 'true';
-    if (isAuthenticated) {
-      navigate('/admin/dashboard', { replace: true });
-    }
+    const checkAuth = () => {
+      const isAuthenticated = sessionStorage.getItem('admin_authenticated') === 'true';
+      console.log('Checking auth on AdminLogin mount:', isAuthenticated);
+      
+      if (isAuthenticated) {
+        console.log('Already authenticated, redirecting to dashboard');
+        navigate('/admin/dashboard', { replace: true });
+      } else {
+        console.log('Not authenticated, staying on login page');
+        setIsCheckingAuth(false);
+      }
+    };
+
+    // Small delay to prevent race conditions
+    const timeoutId = setTimeout(checkAuth, 100);
+    
+    return () => clearTimeout(timeoutId);
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
+    console.log('Attempting login with:', email);
 
     // Simulate login delay
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -44,13 +60,18 @@ export default function AdminLogin() {
       email.trim().toLowerCase() === HARDCODED_EMAIL &&
       password === HARDCODED_PASSWORD
     ) {
+      console.log('Login successful, setting authentication');
       sessionStorage.setItem('admin_authenticated', 'true');
+      
       toast({
         title: "Login Successful",
         description: "Welcome back, Admin!",
       });
+      
+      // Navigate with replace to prevent back navigation issues
       navigate('/admin/dashboard', { replace: true });
     } else {
+      console.log('Login failed - invalid credentials');
       toast({
         variant: "destructive",
         title: "Login Failed",
@@ -59,6 +80,15 @@ export default function AdminLogin() {
       setIsLoading(false);
     }
   };
+
+  // Show loading while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white flex justify-center items-center">
+        <div className="text-indigo-600">Checking authentication...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white flex flex-col justify-center items-center p-4">

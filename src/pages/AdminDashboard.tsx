@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Users, FileText, LogOut, CreditCard, Home } from 'lucide-react';
 
@@ -12,32 +12,45 @@ export default function AdminDashboard() {
   const [loanCount, setLoanCount] = useState(0);
   const [pendingLoans, setPendingLoans] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check authentication and load data
-    const isAuthenticated = sessionStorage.getItem('admin_authenticated') === 'true';
-    
-    if (!isAuthenticated) {
-      navigate('/admin/login', { replace: true });
-      return;
-    }
+    // Check authentication first
+    const checkAuthAndLoadData = async () => {
+      const isAuthenticated = sessionStorage.getItem('admin_authenticated') === 'true';
+      console.log('Checking auth on AdminDashboard mount:', isAuthenticated);
+      
+      if (!isAuthenticated) {
+        console.log('Not authenticated, redirecting to login');
+        navigate('/admin/login', { replace: true });
+        return;
+      }
+      
+      console.log('Authenticated, loading dashboard data');
+      setIsCheckingAuth(false);
+      
+      // Load dashboard data
+      await loadDashboardData();
+    };
 
-    // Load dashboard data
-    loadDashboardData();
+    checkAuthAndLoadData();
   }, [navigate]);
 
   const loadDashboardData = async () => {
     setIsLoading(true);
     try {
-      // Get user count from auth users
+      console.log('Loading dashboard data...');
+      
+      // Get user count from verification_codes table (proxy for users)
       const { count: userCountData, error: userError } = await supabase
         .from('verification_codes')
         .select('user_id', { count: 'exact', head: true });
       
-      if (!userError) {
-        setUserCount(userCountData || 0);
+      if (!userError && userCountData !== null) {
+        setUserCount(userCountData);
+        console.log('User count loaded:', userCountData);
       }
       
       // Get loan counts
@@ -48,6 +61,7 @@ export default function AdminDashboard() {
       if (!loanError && loanData) {
         setLoanCount(loanData.length);
         setPendingLoans(loanData.filter(loan => loan.status === 'pending').length);
+        console.log('Loan data loaded:', { total: loanData.length, pending: pendingLoans });
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -57,13 +71,23 @@ export default function AdminDashboard() {
   };
 
   const handleSignOut = () => {
+    console.log('Admin signing out');
     sessionStorage.removeItem('admin_authenticated');
     toast({
       title: 'Signed Out',
       description: 'You have been signed out successfully.',
     });
-    navigate('/admin/login', { replace: true });
+    navigate('/', { replace: true }); // Navigate to landing page
   };
+
+  // Show loading while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex justify-center items-center">
+        <div className="text-finance-primary">Loading admin dashboard...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -73,11 +97,16 @@ export default function AdminDashboard() {
             <h1 className="text-2xl font-bold text-finance-primary">Admin Dashboard</h1>
           </div>
           <div className="flex items-center space-x-4">
+            <Button asChild variant="outline">
+              <Link to="/">
+                <Home className="h-4 w-4 mr-2" />
+                Main Site
+              </Link>
+            </Button>
             <Button 
-              variant="ghost" 
+              variant="destructive" 
               size="sm"
               onClick={handleSignOut}
-              className="text-gray-600 hover:text-gray-900"
             >
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
@@ -89,14 +118,6 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-xl font-semibold">Overview</h2>
-          <div className="flex space-x-4">
-            <Button asChild variant="outline">
-              <Link to="/">
-                <Home className="h-4 w-4 mr-2" />
-                Main Site
-              </Link>
-            </Button>
-          </div>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
